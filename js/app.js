@@ -1177,7 +1177,7 @@ async function renderArbitros() {
           <td><strong>${a.nombre||''}</strong></td>
           <td style="color:var(--text2)">${a.nacionalidad||''}</td>
           <td style="color:var(--text3);font-size:.75rem">${a.confederacion||''}</td>
-          <td style="text-align:center">${a.partidos||0}</td>
+          <td style="text-align:center">${a.pj||0}</td>
           <td style="text-align:center">${a.amarillas_pp != null ? Number(a.amarillas_pp).toFixed(2) : '–'}</td>
           <td style="text-align:center">${a.rojas_pp != null ? Number(a.rojas_pp).toFixed(2) : '–'}</td>
           <td>${tendBadge(a.tendencia)}</td>
