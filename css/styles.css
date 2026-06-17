@@ -1054,3 +1054,20 @@ footer a:hover { color: var(--gold); }
 
 /* ─── Live árbitro ───────────────────────────────────────────────────────────── */
 .live-arbitro { font-size:.78rem; color:var(--text2); padding:.35rem .6rem; background:rgba(255,255,255,.04); border-radius:6px; margin:.4rem 0; display:flex; align-items:center; gap:.35rem; flex-wrap:wrap; }
+
+/* ─── Stats responsivo ───────────────────────────────────────────────────────── */
+.stats-mobile { display: none; }
+@media(max-width:640px) {
+  .stats-desktop { display: none; }
+  .stats-mobile  { display: block; }
+}
+.stat-card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:.75rem 1rem; margin-bottom:.6rem; }
+.stat-card-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:.5rem; font-size:.88rem; }
+.stat-pj { font-size:.72rem; color:var(--text3); font-weight:600; }
+.stat-card-row { display:flex; gap:.4rem; flex-wrap:wrap; align-items:center; }
+.stat-pill { font-size:.75rem; font-weight:700; padding:.2rem .45rem; border-radius:5px; }
+.stat-pill.win  { background:rgba(50,200,80,.15);  color:#4ade80; }
+.stat-pill.draw { background:rgba(255,255,255,.07); color:var(--text2); }
+.stat-pill.loss { background:rgba(220,50,50,.15);  color:#f87171; }
+.stat-pill.gf   { background:rgba(255,215,0,.12);  color:var(--gold); }
+.stat-pill.ga   { background:rgba(255,255,255,.05); color:var(--text3); }

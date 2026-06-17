@@ -1107,14 +1107,14 @@ async function renderStats() {
     const stats = await getData('stats', 10*60*1000);
     if (!stats.length) { document.getElementById('section-stats').innerHTML = emptyHtml('📈', 'Sin estadísticas acumuladas aún.'); return; }
     document.getElementById('section-stats').innerHTML = `
-    <div style="overflow-x:auto">
+    <div class="stats-desktop">
     <table class="standings-table stats-table">
       <thead><tr>
-        <th>Equipo</th><th title="PJ">PJ</th><th title="Victorias">W</th><th title="Empates">D</th><th title="Derrotas">L</th>
-        <th title="Goles">GF</th><th title="Goles en contra">GA</th>
-        <th title="Posesión promedio">Pos%</th><th title="Tiros">Tiros</th>
-        <th title="Al arco">Arco</th><th title="Corners">Corn.</th>
-        <th title="Amarillas">🟨</th>
+        <th>Equipo</th><th title="Partidos jugados">PJ</th><th title="Victorias">W</th><th title="Empates">D</th><th title="Derrotas">L</th>
+        <th title="Goles a favor">GF</th><th title="Goles en contra">GA</th>
+        <th title="Posesión promedio del torneo">Pos%</th><th title="Tiros totales">Tiros</th>
+        <th title="Tiros al arco">Arco</th><th title="Corners">Corn.</th>
+        <th title="Tarjetas amarillas">🟨</th>
       </tr></thead>
       <tbody>${stats.map(t => `
         <tr onclick="showTeamSquad('${t.equipo}');showSection('equipos')" style="cursor:pointer">
@@ -1134,7 +1134,29 @@ async function renderStats() {
       </tbody>
     </table>
     </div>
-    <p class="table-note">Click en equipo para ver plantel · Acumulado del torneo</p>`;
+    <div class="stats-mobile">
+      ${stats.map(t => `
+      <div class="stat-card">
+        <div class="stat-card-header">
+          <span>${flag(t.equipo)} <strong>${t.equipo}</strong></span>
+          <span class="stat-pj">${t.pj||0} PJ</span>
+        </div>
+        <div class="stat-card-row">
+          <div class="stat-pill win">${t.pg||0}W</div>
+          <div class="stat-pill draw">${t.pe||0}D</div>
+          <div class="stat-pill loss">${t.pp||0}L</div>
+          <div class="stat-pill gf">⚽ ${t.gf||0}</div>
+          <div class="stat-pill ga" style="color:var(--text3)">−${t.ga||0}</div>
+        </div>
+        <div class="stat-card-row" style="margin-top:.3rem;font-size:.75rem;color:var(--text2);gap:.75rem">
+          ${t.posesion_avg ? `<span title="Posesión promedio">🏃 ${Number(t.posesion_avg).toFixed(0)}% pos.</span>` : ''}
+          ${t.tiros ? `<span title="Tiros / al arco">🎯 ${t.tiros||0}/${t.tiros_arco||0}</span>` : ''}
+          ${t.corners ? `<span title="Corners">⛳ ${t.corners} corn.</span>` : ''}
+          ${t.amarillas ? `<span>🟨 ${t.amarillas}</span>` : ''}
+        </div>
+      </div>`).join('')}
+    </div>
+    <p class="table-note">Click en equipo (desktop) para ver plantel · Acumulado del torneo · Pos% = posesión promedio</p>`;
   } catch(e) {
     document.getElementById('section-stats').innerHTML = errorHtml('Error stats: ' + e.message);
   }
