@@ -502,12 +502,70 @@ function buildLiveCard(m) {
   let climaInfo = '';
   if (m.clima) {
     const c = m.clima;
-    const condIcon = {'DESPEJADO':'☀️','NUBLADO':'☁️','LLUVIA':'🌧️','TORMENTA':'⛈️','NIEBLA':'🌫️','VIENTO':'💨'}[c.condicion]||'🌡️';
+    const condIcon = {'DESPEJADO':'☀️','NUBLADO':'☁️','LLUVIA':'🌧️','TORMENTA':'⛈️','NIEBLA':'🌫️','VIENTO':'💨'}[(c.condicion||'').toUpperCase()]||'🌡️';
     const parts = [];
     if (c.temperatura != null) parts.push(`${c.temperatura}°C`);
     if (c.humedad     != null) parts.push(`💧${c.humedad}%`);
     if (c.viento      != null) parts.push(`💨${c.viento}km/h`);
     if (parts.length) climaInfo = `<div class="match-clima" style="margin:.3rem 0">${condIcon} ${parts.join(' · ')}</div>`;
+  }
+
+  // Probabilities
+  let probHtml = '';
+  if (m.poisson) {
+    const p = m.poisson;
+    probHtml = `<div class="live-probs">
+      <span class="lp-label">${m.local}</span>
+      <div class="prob-bar" style="margin:0 .5rem;flex:1">
+        <div class="ph" style="width:${p.prob_home}%"></div>
+        <div class="pd" style="width:${p.prob_draw}%"></div>
+        <div class="pa" style="width:${p.prob_away}%"></div>
+      </div>
+      <span class="lp-label">${m.visitante}</span>
+    </div>
+    <div class="live-probs-nums">
+      <span class="ph-l">${p.prob_home}%</span>
+      <span style="color:var(--text3)">Empate ${p.prob_draw}%</span>
+      <span class="pa-l">${p.prob_away}%</span>
+    </div>`;
+  }
+
+  // Alineaciones con visualización de cancha
+  const mk = m.match_key || '';
+  const alin = m.alineaciones || [];
+  let lineupHtml = '';
+  if (alin.length) {
+    const titularesLocal     = alin.filter(a => a.equipo === m.local     && a.rol === 'titular');
+    const titularesVisitante = alin.filter(a => a.equipo === m.visitante && a.rol === 'titular');
+    const supLocal     = alin.filter(a => a.equipo === m.local     && a.rol !== 'titular');
+    const supVisitante = alin.filter(a => a.equipo === m.visitante && a.rol !== 'titular');
+
+    const fieldSvg = buildLineupField(m.local, m.visitante, titularesLocal, titularesVisitante);
+    const subHtml  = (subs, equipo) => subs.length ? `<div class="lineup-subs">
+      <span style="color:var(--text3);font-size:.7rem">Suplentes:</span>
+      ${subs.slice(0,7).map(p=>`<span class="lineup-sub-name">${p.numero ? `${p.numero}.` : ''}${p.jugador}</span>`).join('')}
+    </div>` : '';
+
+    lineupHtml = `<div class="lineup-section">
+      <div class="detail-block-title" onclick="toggleLiveLineup('${mk}')" style="cursor:pointer">
+        📋 Alineaciones <span id="lineup-arrow-${mk}">▶</span>
+      </div>
+      <div id="lineup-body-${mk}" style="display:none">
+        ${fieldSvg}
+        <div class="lineups-grid" style="margin-top:.75rem">
+          <div class="lineup-col">
+            <div style="font-weight:600;margin-bottom:.4rem">${flag(m.local)} ${m.local}</div>
+            ${titularesLocal.map(p=>`<div class="lineup-player"><span class="lineup-num">${p.numero||''}</span>${p.jugador}</div>`).join('')}
+            ${subHtml(supLocal)}
+          </div>
+          <div class="lineup-col">
+            <div style="font-weight:600;margin-bottom:.4rem">${flag(m.visitante)} ${m.visitante}</div>
+            ${titularesVisitante.map(p=>`<div class="lineup-player"><span class="lineup-num">${p.numero||''}</span>${p.jugador}</div>`).join('')}
+            ${subHtml(supVisitante)}
+          </div>
+        </div>
+      </div>
+    </div>`;
   }
 
   return `<div class="match-detail-card live">
@@ -518,12 +576,88 @@ function buildLiveCard(m) {
     ${climaInfo}
     <div class="md-score">
       <div class="md-team">${flag(m.local)} <span>${m.local||''}</span></div>
-      <div class="md-scorebox">${m.goles_local??'–'} – ${m.goles_visitante??'–'}</div>
+      <div class="md-scorebox">${m.goles_local !== null ? m.goles_local : '–'} – ${m.goles_visitante !== null ? m.goles_visitante : '–'}</div>
       <div class="md-team right">${flag(m.visitante)} <span>${m.visitante||''}</span></div>
     </div>
+    ${probHtml}
     <div class="live-events-list">${evHtml}</div>
     ${statsHtml}
+    ${lineupHtml}
   </div>`;
+}
+
+function toggleLiveLineup(mk) {
+  const body  = document.getElementById(`lineup-body-${mk}`);
+  const arrow = document.getElementById(`lineup-arrow-${mk}`);
+  if (!body) return;
+  const open = body.style.display !== 'none';
+  body.style.display  = open ? 'none' : '';
+  if (arrow) arrow.textContent = open ? '▶' : '▼';
+}
+
+function buildLineupField(localTeam, visitanteTeam, titLocal, titVisitante) {
+  if (!titLocal.length && !titVisitante.length) return '';
+  const W = 320, H = 420;
+
+  // Group players by grid row or evenly by position
+  const groupByRow = (players) => {
+    if (players.some(p => p.grid)) {
+      const rows = {};
+      players.forEach(p => {
+        const row = String(p.grid || '').split('-')[0] || '5';
+        if (!rows[row]) rows[row] = [];
+        rows[row].push(p);
+      });
+      return Object.keys(rows).sort().map(k => rows[k]);
+    }
+    // Fallback: group by position
+    const GK = players.filter(p => (p.posicion||'').toLowerCase().includes('goalkeeper') || (p.posicion||'').toLowerCase() === 'gk');
+    const DF = players.filter(p => (p.posicion||'').toLowerCase().includes('defender'));
+    const MF = players.filter(p => (p.posicion||'').toLowerCase().includes('midfielder'));
+    const FW = players.filter(p => (p.posicion||'').toLowerCase().includes('forward') || (p.posicion||'').toLowerCase() === 'attacker');
+    const lines = [GK, DF, MF, FW].filter(g => g.length);
+    if (lines.length === 0) {
+      // No position info: distribute evenly
+      const all = [...players];
+      const out = [];
+      if (all.length >= 1) out.push(all.splice(0, 1));
+      if (all.length >= 2) out.push(all.splice(0, Math.floor(all.length / 2)));
+      if (all.length) out.push(all);
+      return out;
+    }
+    return lines;
+  };
+
+  const drawTeam = (players, yStart, yEnd, flip) => {
+    const lines = groupByRow(players);
+    if (!lines.length) return '';
+    let svg = '';
+    lines.forEach((row, li) => {
+      const y = yStart + (yEnd - yStart) * (li + 0.5) / lines.length;
+      row.forEach((p, pi) => {
+        const x = W * (pi + 1) / (row.length + 1);
+        const name = (p.jugador || '').split(' ').pop().substring(0, 10);
+        svg += `<circle cx="${x}" cy="${y}" r="11" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.5)" stroke-width="1"/>`;
+        svg += `<text x="${x}" y="${y+1}" text-anchor="middle" dominant-baseline="middle" font-size="7" fill="white" font-weight="bold">${p.numero||''}</text>`;
+        svg += `<text x="${x}" y="${y+16}" text-anchor="middle" font-size="6.5" fill="rgba(255,255,255,0.85)">${name}</text>`;
+      });
+    });
+    return svg;
+  };
+
+  const svgContent = `
+    <rect width="${W}" height="${H}" rx="8" fill="#2d5a1b"/>
+    <rect x="0" y="${H/2-1}" width="${W}" height="2" fill="rgba(255,255,255,0.3)"/>
+    <rect x="${W*0.15}" y="${H*0.04}" width="${W*0.7}" height="${H*0.15}" rx="2" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="1.5"/>
+    <rect x="${W*0.15}" y="${H*0.81}" width="${W*0.7}" height="${H*0.15}" rx="2" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="1.5"/>
+    <circle cx="${W/2}" cy="${H/2}" r="40" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="1.5"/>
+    <text x="${W/2}" y="12" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.6)">${localTeam}</text>
+    <text x="${W/2}" y="${H-4}" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.6)">${visitanteTeam}</text>
+    ${drawTeam(titLocal, 20, H/2 - 10, false)}
+    ${drawTeam([...titVisitante].reverse(), H/2 + 10, H - 20, true)}
+  `;
+
+  return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:340px;display:block;margin:.5rem auto;border-radius:8px">${svgContent}</svg>`;
 }
 
 // ─── Posiciones ───────────────────────────────────────────────────────────────
@@ -712,9 +846,11 @@ async function renderTeams() {
     teams.forEach(t => { const g = t.grupo||'Sin grupo'; if (!grupos[g]) grupos[g]=[]; grupos[g].push(t); });
     const formaColor = r => ({W:'var(--green)',D:'var(--text3)',L:'var(--red)'})[r]||'var(--text3)';
 
-    document.getElementById('section-teams').innerHTML = Object.keys(grupos).sort().map(g => `
+    document.getElementById('section-teams').innerHTML = Object.keys(grupos).sort().map(g => {
+      const gLabel = /^grupo\s/i.test(g) ? g : `Grupo ${g}`;
+      return `
       <div style="margin-bottom:2rem">
-        <h3 class="section-title">Grupo ${g}</h3>
+        <h3 class="section-title">${gLabel}</h3>
         <div class="teams-grid">
           ${grupos[g].map(t => `
             <div class="team-card" onclick="showTeamSquad('${t.nombre}')" style="cursor:pointer">
@@ -733,7 +869,8 @@ async function renderTeams() {
               <div id="squad-${t.nombre.replace(/\s/g,'_')}" class="squad-inline" style="display:none"></div>
             </div>`).join('')}
         </div>
-      </div>`).join('');
+      </div>`;
+    }).join('');
   } catch(e) {
     document.getElementById('section-teams').innerHTML = errorHtml('Error equipos: ' + e.message);
   }
