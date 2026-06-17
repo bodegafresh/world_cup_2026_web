@@ -495,11 +495,27 @@ function buildLiveCard(m) {
     </div>`;
   }).join('') || `<p style="color:var(--text3);font-size:.8rem;padding:.5rem 0">Sin eventos registrados aún</p>`;
   const statsHtml = m.stats ? buildStatsBars(m.local, m.visitante, m.stats) : '';
+
+  // Venue + clima
+  const horaLocal = m.hora_local ? ` · ⏰ ${m.hora_local} local` : '';
+  const venueInfo = [m.estadio, m.ciudad].filter(Boolean).join(', ');
+  let climaInfo = '';
+  if (m.clima) {
+    const c = m.clima;
+    const condIcon = {'DESPEJADO':'☀️','NUBLADO':'☁️','LLUVIA':'🌧️','TORMENTA':'⛈️','NIEBLA':'🌫️','VIENTO':'💨'}[c.condicion]||'🌡️';
+    const parts = [];
+    if (c.temperatura != null) parts.push(`${c.temperatura}°C`);
+    if (c.humedad     != null) parts.push(`💧${c.humedad}%`);
+    if (c.viento      != null) parts.push(`💨${c.viento}km/h`);
+    if (parts.length) climaInfo = `<div class="match-clima" style="margin:.3rem 0">${condIcon} ${parts.join(' · ')}</div>`;
+  }
+
   return `<div class="match-detail-card live">
     <div class="md-header">
-      <span class="live-pill">🔴 EN VIVO</span>
-      <span style="color:var(--text3);font-size:.8rem">${m.status||''} · ${m.estadio||''}</span>
+      <span class="live-pill">🔴 EN VIVO ${m.minuto||m.status||''}</span>
+      <span style="color:var(--text3);font-size:.8rem">${venueInfo}${horaLocal}</span>
     </div>
+    ${climaInfo}
     <div class="md-score">
       <div class="md-team">${flag(m.local)} <span>${m.local||''}</span></div>
       <div class="md-scorebox">${m.goles_local??'–'} – ${m.goles_visitante??'–'}</div>
