@@ -661,19 +661,75 @@ function buildLineupField(localTeam, visitanteTeam, titLocal, titVisitante) {
 }
 
 // ─── Posiciones ───────────────────────────────────────────────────────────────
+const KNOCKOUT_KEYS = ['octavos','cuartos','semifinal','semifinales','final','tercerpuesto','r16','qf','sf','3rd'];
+const isKnockout = k => KNOCKOUT_KEYS.some(p => k.toLowerCase().replace(/\s/g,'').includes(p));
+const KNOCKOUT_LABEL = {
+  'octavos':'Octavos de Final','cuartos':'Cuartos de Final',
+  'semifinal':'Semifinales','semifinales':'Semifinales',
+  'final':'Gran Final','tercerpuesto':'Tercer Puesto',
+  'r16':'Octavos de Final','qf':'Cuartos de Final','sf':'Semifinales'
+};
+function knockoutLabel(k) {
+  const kn = k.toLowerCase().replace(/\s/g,'');
+  const match = KNOCKOUT_KEYS.find(p => kn.includes(p));
+  return KNOCKOUT_LABEL[match] || k;
+}
+
 async function renderStandings(groupKey) {
   document.getElementById('standings-content').innerHTML = `<div class="skeleton skel-row"></div>`.repeat(4);
   try {
     const grupos = await getData('standings');
     const letras = Object.keys(grupos).sort();
+
+    // Separar grupos de fase de eliminación
+    const groupPhase    = letras.filter(g => !isKnockout(g));
+    const knockoutPhase = letras.filter(g =>  isKnockout(g));
+
     const tabsEl = document.getElementById('groups-tabs');
-    if (!tabsEl.children.length) {
-      tabsEl.innerHTML = letras.map(g =>
-        `<button class="group-tab${g === state.activeGroup ? ' active' : ''}" onclick="switchGroup('${g}')">Grupo ${g}</button>`
+    // Rebuild tabs if needed (detect stale state)
+    const builtFor = tabsEl.dataset.builtFor || '';
+    if (builtFor !== letras.join(',')) {
+      tabsEl.dataset.builtFor = letras.join(',');
+      const gpTabs = groupPhase.map(g =>
+        `<button class="group-tab${g === state.activeGroup ? ' active' : ''}" onclick="switchGroup('${g}')">${g}</button>`
       ).join('');
+      const koTabs = knockoutPhase.length
+        ? `<button class="group-tab ko-tab" onclick="switchGroup('__knockout__')">🏆 Eliminatorias</button>` : '';
+      tabsEl.innerHTML = gpTabs + koTabs;
     }
+
     const active = groupKey || state.activeGroup;
-    const equipo = grupos[active] || grupos[letras[0]] || [];
+
+    // ── Vista eliminatorias ──────────────────────────────────────────────────
+    if (active === '__knockout__' || (knockoutPhase.length && groupPhase.length === 0)) {
+      const sections = knockoutPhase.map(k => {
+        const partidos = grupos[k] || [];
+        const matches  = partidos.filter(p => p.match_key || p.local);
+        return `<div class="ko-section">
+          <h4 class="ko-round-title">${knockoutLabel(k)}</h4>
+          <div class="ko-matches">${matches.map(m => `
+            <div class="ko-match">
+              <div class="ko-team ${m.clasificado || m.pts > 0 ? 'winner' : ''}">
+                ${flag(m.equipo||m.local||'')} ${m.equipo||m.local||''}
+                ${m.pts != null ? `<span class="ko-pts">${m.pts}pts</span>` : ''}
+              </div>
+              ${m.visitante ? `<div class="ko-vs">vs</div>
+              <div class="ko-team">
+                ${flag(m.visitante)} ${m.visitante}
+              </div>` : ''}
+              ${(m.goles_local != null && m.goles_visitante != null)
+                ? `<div class="ko-score">${m.goles_local} – ${m.goles_visitante}</div>` : ''}
+            </div>`).join('')}
+          </div>
+        </div>`;
+      }).join('');
+      document.getElementById('standings-content').innerHTML = sections ||
+        `<p style="color:var(--text3);padding:1rem">La fase eliminatoria comenzará cuando terminen los grupos.</p>`;
+      return;
+    }
+
+    // ── Vista grupos ─────────────────────────────────────────────────────────
+    const equipo = grupos[active] || grupos[groupPhase[0]] || [];
     document.getElementById('standings-content').innerHTML = `
     <table class="standings-table">
       <thead><tr><th>#</th><th>Equipo</th><th>PJ</th><th>PG</th><th>PE</th><th>PP</th><th>GF</th><th>GA</th><th>GD</th><th>Pts</th></tr></thead>
@@ -695,7 +751,12 @@ async function renderStandings(groupKey) {
 }
 function switchGroup(g) {
   state.activeGroup = g;
-  document.querySelectorAll('.group-tab').forEach(b => b.classList.toggle('active', b.textContent === `Grupo ${g}`));
+  document.querySelectorAll('.group-tab').forEach(b => {
+    b.classList.toggle('active',
+      b.textContent.trim() === g ||
+      (g === '__knockout__' && b.classList.contains('ko-tab'))
+    );
+  });
   renderStandings(g);
 }
 function filterTeamMatches(equipo) {
@@ -707,30 +768,76 @@ function filterTeamMatches(equipo) {
 async function renderEV() {
   document.getElementById('section-ev').innerHTML = `<div class="skeleton skel-row"></div>`.repeat(5);
   try {
-    const opps = await getData('ev');
-    if (!opps.length) {
-      document.getElementById('section-ev').innerHTML = emptyHtml('🔍', 'Sin oportunidades EV+ por ahora.');
-      return;
+    const [opps, preds] = await Promise.all([
+      getData('ev'),
+      getData('predictions').catch(() => [])
+    ]);
+
+    let html = '';
+
+    if (opps.length) {
+      html += `
+      <h3 class="section-title" style="margin-bottom:.75rem">💡 Oportunidades EV+</h3>
+      <div style="overflow-x:auto">
+      <table class="ev-table">
+        <thead><tr><th>Partido</th><th>Mercado</th><th>Selección</th><th>Modelo</th><th>Cuota</th><th>EV</th><th>Kelly%</th></tr></thead>
+        <tbody>${opps.map(r => `
+          <tr>
+            <td>${flag(r.local||'')} ${r.local||''} vs ${flag(r.visitante||'')} ${r.visitante||''}<br>
+                <small style="color:var(--text3)">${r.fecha||''}</small></td>
+            <td><small>${r.mercado||''}</small></td>
+            <td><strong>${r.seleccion||''}</strong></td>
+            <td>${fmt.pct(Number(r.prob_modelo||0)*100)}</td>
+            <td><strong style="color:var(--gold)">${fmt.dec(r.cuota)}</strong></td>
+            <td><span class="ev-badge ${evColor(r.ev)}">+${(Number(r.ev||0)*100).toFixed(1)}%</span></td>
+            <td style="color:var(--text2)">${(Number(r.kelly||0)*100).toFixed(1)}%</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+      </div>
+      <p class="table-note">EV = (Prob. modelo × cuota) − 1 · Cuotas: The Odds API</p>`;
+    } else {
+      html += `<div class="ev-no-odds">⚠️ Sin cuotas de mercado cargadas — activa The Odds API o corre <code>cronDailySetup</code> para calcular EV.</div>`;
     }
-    document.getElementById('section-ev').innerHTML = `
-    <div style="overflow-x:auto">
-    <table class="ev-table">
-      <thead><tr><th>Partido</th><th>Mercado</th><th>Selección</th><th>Modelo</th><th>Cuota</th><th>EV</th><th>Kelly%</th></tr></thead>
-      <tbody>${opps.map(r => `
-        <tr>
-          <td>${flag(r.local||'')} ${r.local||''} vs ${flag(r.visitante||'')} ${r.visitante||''}<br>
-              <small style="color:var(--text3)">${r.fecha||''}</small></td>
-          <td><small>${r.mercado||''}</small></td>
-          <td><strong>${r.seleccion||''}</strong></td>
-          <td>${fmt.pct(Number(r.prob_modelo||0)*100)}</td>
-          <td><strong style="color:var(--gold)">${fmt.dec(r.cuota)}</strong></td>
-          <td><span class="ev-badge ${evColor(r.ev)}">+${(Number(r.ev||0)*100).toFixed(1)}%</span></td>
-          <td style="color:var(--text2)">${(Number(r.kelly||0)*100).toFixed(1)}%</td>
-        </tr>`).join('')}
-      </tbody>
-    </table>
-    </div>
-    <p class="table-note">EV = (Prob. modelo × cuota) − 1 · Cuotas: Pinnacle / The Odds API</p>`;
+
+    // Análisis Poisson para próximos partidos (siempre visible)
+    const upcoming = preds.filter(p => p.poisson || p.elo);
+    if (upcoming.length) {
+      html += `<h3 class="section-title" style="margin-top:1.5rem;margin-bottom:.75rem">🎯 Análisis del Modelo — Próximos Partidos</h3>
+      <div class="poisson-cards">`;
+      upcoming.forEach(p => {
+        const px = p.poisson || {};
+        const el = p.elo || {};
+        const ph = Number(px.prob_home || el.prob_home || 0);
+        const pd = Number(px.prob_draw || el.prob_draw || 0);
+        const pa = Number(px.prob_away || el.prob_away || 0);
+        const lH = Number(px.lambda_h || 0);
+        const lA = Number(px.lambda_a || 0);
+        const o25 = Number(px.over25 || 0);
+        const btts = Number(px.btts || 0);
+        html += `<div class="poisson-card">
+          <div class="pc-header">
+            <span class="pc-teams">${flag(p.local)} ${p.local} vs ${flag(p.visitante)} ${p.visitante}</span>
+            <span class="pc-meta">${p.hora||''} ${p.grupo ? `· ${p.grupo}` : ''}</span>
+          </div>
+          <div class="pc-probs">
+            <div class="pc-prob win"><div class="pc-pct">${ph.toFixed(1)}%</div><div class="pc-lbl">${p.local}</div></div>
+            <div class="pc-prob draw"><div class="pc-pct">${pd.toFixed(1)}%</div><div class="pc-lbl">Empate</div></div>
+            <div class="pc-prob win"><div class="pc-pct">${pa.toFixed(1)}%</div><div class="pc-lbl">${p.visitante}</div></div>
+          </div>
+          <div class="prob-bar" style="margin:.4rem 0">
+            <div class="ph" style="width:${ph}%"></div>
+            <div class="pd" style="width:${pd}%"></div>
+            <div class="pa" style="width:${pa}%"></div>
+          </div>
+          ${lH || lA ? `<div class="pc-lambda">λ: ${lH} – ${lA} goles esperados${o25 ? ` · Over 2.5: ${o25}%` : ''}${btts ? ` · BTTS: ${btts}%` : ''}</div>` : ''}
+        </div>`;
+      });
+      html += `</div>`;
+    }
+
+    if (!html) html = emptyHtml('🔍', 'Sin datos disponibles. Ejecuta cronDailySetup en Apps Script.');
+    document.getElementById('section-ev').innerHTML = html;
   } catch(e) {
     document.getElementById('section-ev').innerHTML = errorHtml('Error EV: ' + e.message);
   }
@@ -741,37 +848,39 @@ async function renderElo() {
   document.getElementById('section-elo').innerHTML = loadingHtml();
   try {
     const rows  = await getData('elo');
-    const top24 = rows.slice(0, 24);
+    const top28 = rows.slice(0, 28);
+    if (!top28.length) { document.getElementById('section-elo').innerHTML = emptyHtml('📊', 'Sin datos ELO.'); return; }
+
+    const minElo = top28[top28.length - 1].elo;
+    const maxElo = top28[0].elo;
+    const colors = top28.map((_,i) =>
+      i === 0 ? '#ffd700' : i < 4 ? '#00c853' : i < 8 ? '#448aff' : '#546e7a'
+    );
+
     document.getElementById('section-elo').innerHTML = `
-      <div class="elo-chart-wrap"><canvas id="elo-chart"></canvas></div>
-      <div class="elo-legend">
-        <span class="elo-leg gold">🥇 Líder</span>
-        <span class="elo-leg green">Top 4</span>
-        <span class="elo-leg blue">Top 8</span>
-        <span class="elo-leg grey">Resto</span>
+      <div class="elo-header">
+        <div class="elo-legend">
+          <span class="elo-leg" style="--c:#ffd700">🥇 #1 Líder</span>
+          <span class="elo-leg" style="--c:#00c853">Top 4</span>
+          <span class="elo-leg" style="--c:#448aff">Top 8</span>
+          <span class="elo-leg" style="--c:#546e7a">Resto</span>
+        </div>
+        <span style="font-size:.75rem;color:var(--text3)">Ranking ELO · ${top28.length} equipos</span>
+      </div>
+      <div class="elo-bars">
+        ${top28.map((r, i) => {
+          const pct = maxElo > minElo ? ((r.elo - minElo) / (maxElo - minElo) * 65 + 25) : 80;
+          const col = colors[i];
+          return `<div class="elo-row">
+            <div class="elo-pos" style="color:${i<4?col:'var(--text3)'}">${r.pos}</div>
+            <div class="elo-name">${flag(r.equipo)} ${r.equipo}</div>
+            <div class="elo-bar-wrap">
+              <div class="elo-bar" style="width:${pct.toFixed(1)}%;background:${col}"></div>
+            </div>
+            <div class="elo-val" style="color:${col}">${Math.round(r.elo)}</div>
+          </div>`;
+        }).join('')}
       </div>`;
-    new Chart(document.getElementById('elo-chart').getContext('2d'), {
-      type: 'bar',
-      data: {
-        labels: top24.map(r => `${flag(r.equipo)} ${r.equipo}`),
-        datasets: [{
-          label: 'ELO',
-          data: top24.map(r => r.elo),
-          backgroundColor: top24.map((_,i) => i===0?'#ffd700':i<4?'#00c853':i<8?'#448aff':'#546e7a'),
-          borderRadius: 4,
-          borderSkipped: false
-        }]
-      },
-      options: {
-        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-        plugins: { legend:{display:false}, tooltip:{ callbacks:{ label: c => ` ELO: ${c.parsed.x}` } } },
-        scales: {
-          x: { grid:{color:'rgba(30,45,77,.5)'}, ticks:{color:'#90a4ae'},
-               min: top24.length ? top24[top24.length-1].elo - 100 : 1300 },
-          y: { grid:{display:false}, ticks:{color:'#e8eaf6', font:{size:11}} }
-        }
-      }
-    });
   } catch(e) {
     document.getElementById('section-elo').innerHTML = errorHtml('Error ELO: ' + e.message);
   }

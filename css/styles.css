@@ -986,3 +986,45 @@ footer a:hover { color: var(--gold); }
 .lp-label { font-size: .7rem; color: var(--text2); white-space: nowrap; max-width: 80px; overflow: hidden; text-overflow: ellipsis; }
 .lineup-section { margin-top: .75rem; border-top: 1px solid var(--border); padding-top: .5rem; }
 .lineup-sub-name { font-size: .7rem; color: var(--text3); margin-right: .4rem; }
+
+/* ─── ELO bars (reemplaza canvas) ───────────────────────────────────────────── */
+.elo-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:.75rem; flex-wrap:wrap; gap:.5rem; }
+.elo-legend { display:flex; gap:1rem; flex-wrap:wrap; }
+.elo-leg { font-size:.75rem; color:var(--text2); display:flex; align-items:center; gap:.3rem; }
+.elo-leg::before { content:''; width:10px; height:10px; border-radius:2px; background:var(--c,#546e7a); display:inline-block; }
+.elo-bars { display:flex; flex-direction:column; gap:.3rem; }
+.elo-row { display:grid; grid-template-columns:28px 140px 1fr 52px; align-items:center; gap:.4rem; padding:.25rem .1rem; border-radius:4px; }
+.elo-row:hover { background:rgba(255,255,255,.03); }
+.elo-pos { font-size:.8rem; font-weight:700; text-align:center; }
+.elo-name { font-size:.82rem; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.elo-bar-wrap { height:14px; background:rgba(255,255,255,.06); border-radius:3px; overflow:hidden; }
+.elo-bar { height:100%; border-radius:3px; transition:width .4s ease; }
+.elo-val { font-size:.8rem; font-weight:700; text-align:right; }
+@media(max-width:600px) { .elo-row { grid-template-columns:22px 100px 1fr 44px; } .elo-name { font-size:.75rem; } }
+
+/* ─── EV Poisson cards ───────────────────────────────────────────────────────── */
+.ev-no-odds { background:rgba(255,160,0,.08); border:1px solid rgba(255,160,0,.2); border-radius:8px; padding:.75rem 1rem; font-size:.82rem; color:var(--text2); margin-bottom:1rem; }
+.ev-no-odds code { background:rgba(255,255,255,.08); padding:.1rem .4rem; border-radius:3px; font-size:.78rem; }
+.poisson-cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:.75rem; }
+.poisson-card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:.9rem 1rem; }
+.pc-header { margin-bottom:.5rem; }
+.pc-teams { font-size:.88rem; font-weight:700; display:block; }
+.pc-meta { font-size:.72rem; color:var(--text3); }
+.pc-probs { display:grid; grid-template-columns:1fr 1fr 1fr; gap:.4rem; margin:.5rem 0; }
+.pc-prob { text-align:center; background:rgba(255,255,255,.05); border-radius:6px; padding:.4rem .2rem; }
+.pc-pct { font-size:1.1rem; font-weight:800; color:var(--gold); }
+.pc-lbl { font-size:.65rem; color:var(--text3); margin-top:.15rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.pc-lambda { font-size:.72rem; color:var(--text3); margin-top:.3rem; }
+
+/* ─── Knockout standings ─────────────────────────────────────────────────────── */
+.ko-section { margin-bottom:1.5rem; }
+.ko-round-title { font-size:.95rem; font-weight:700; color:var(--gold); text-transform:uppercase; letter-spacing:.04em; margin-bottom:.6rem; padding-bottom:.3rem; border-bottom:1px solid var(--border); }
+.ko-matches { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:.5rem; }
+.ko-match { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:.65rem .9rem; display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; }
+.ko-team { font-size:.85rem; flex:1; }
+.ko-team.winner { font-weight:700; color:var(--green); }
+.ko-pts { font-size:.72rem; color:var(--text3); margin-left:.3rem; }
+.ko-vs { font-size:.75rem; color:var(--text3); }
+.ko-score { font-size:1rem; font-weight:800; color:var(--gold); margin-left:auto; }
+.group-tab.ko-tab { border-color:var(--gold); color:var(--gold); }
+.group-tab.ko-tab.active { background:var(--gold); color:#000; }
