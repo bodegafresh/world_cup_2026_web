@@ -1,10 +1,10 @@
 // ─── Flags ───────────────────────────────────────────────────────────────────
 const FLAGS = {
   'Argentina':'🇦🇷','Brasil':'🇧🇷','Francia':'🇫🇷','Alemania':'🇩🇪','España':'🇪🇸',
-  'Inglaterra':'🏴󠁧󠁢󠁥󠁮󠁧󠁿','England':'🏴󠁧󠁢󠁥󠁮󠁧󠁿','Portugal':'🇵🇹','Países Bajos':'🇳🇱',
+  'Inglaterra':'🏴󠁧󠁢󠁥󠁮󠁧󠁿','England':'🏴󠁧󠁢󠁥󠁮󠁧󠁿','Portugal':'🇵🇹','Países Bajos':'🇳🇱','Netherlands':'🇳🇱',
   'Bélgica':'🇧🇪','Uruguay':'🇺🇾','Colombia':'🇨🇴','México':'🇲🇽',
   'USA':'🇺🇸','Estados Unidos':'🇺🇸','Canadá':'🇨🇦','Canada':'🇨🇦',
-  'Marruecos':'🇲🇦','Senegal':'🇸🇳','Japón':'🇯🇵','Corea del Sur':'🇰🇷',
+  'Marruecos':'🇲🇦','Senegal':'🇸🇳','Japón':'🇯🇵','Japan':'🇯🇵','Corea del Sur':'🇰🇷',
   'Australia':'🇦🇺','Ecuador':'🇪🇨','Chile':'🇨🇱','Perú':'🇵🇪',
   'Venezuela':'🇻🇪','Bolivia':'🇧🇴','Paraguay':'🇵🇾','Costa Rica':'🇨🇷',
   'Panamá':'🇵🇦','Honduras':'🇭🇳','Jamaica':'🇯🇲','Qatar':'🇶🇦',
@@ -16,10 +16,16 @@ const FLAGS = {
   'Italia':'🇮🇹','Escocia':'🏴󠁧󠁢󠁳󠁣󠁴󠁿','Grecia':'🇬🇷','Georgia':'🇬🇪',
   'China':'🇨🇳','Nueva Zelanda':'🇳🇿','Rep. Checa':'🇨🇿','Rumanía':'🇷🇴',
   'Eslovaquia':'🇸🇰','Hungría':'🇭🇺','Albania':'🇦🇱','Eslovenia':'🇸🇮',
+  'Congo DR':'🇨🇩','Uzbekistán':'🇺🇿','Uzbekistan':'🇺🇿','Sudáfrica':'🇿🇦',
+  'Bosnia':'🇧🇦','Catar':'🇶🇦','República Checa':'🇨🇿','Rep. Dominicana':'🇩🇴',
+  'El Salvador':'🇸🇻','Guatemala':'🇬🇹','Cuba':'🇨🇺','Trinidad y Tobago':'🇹🇹',
+  'Nueva Caledonia':'🇳🇨','Tahití':'🇵🇫','Fiji':'🇫🇯','Vanuatu':'🇻🇺',
+  'Israel':'🇮🇱','Siria':'🇸🇾','Jordania':'🇯🇴','Iraq':'🇮🇶',
+  'Mali':'🇲🇱','Angola':'🇦🇴','Tanzania':'🇹🇿','Kenia':'🇰🇪',
 };
 const flag = t => FLAGS[t] || '🏳️';
 
-// ─── Utilidades ──────────────────────────────────────────────────────────────
+// ─── Utils ────────────────────────────────────────────────────────────────────
 const fmt = {
   pct:  v => `${Number(v||0).toFixed(1)}%`,
   dec:  v => Number(v||0).toFixed(2),
@@ -29,33 +35,21 @@ const fmt = {
 function formatHora(v) {
   if (!v) return '';
   const s = String(v);
-  // ISO timestamp from Google Sheets 1899-12-30 base date
-  const mISO = s.match(/T(\d{2}):(\d{2})/);
-  if (mISO) return `${mISO[1]}:${mISO[2]}`;
-  // Already HH:MM format
-  if (/^\d{1,2}:\d{2}/.test(s)) return s;
+  const m = s.match(/T(\d{2}):(\d{2})/);
+  if (m) return `${m[1]}:${m[2]}`;
+  if (/^\d{1,2}:\d{2}/.test(s)) return s.substring(0,5);
   return '';
 }
 
-function normDate(v) {
-  if (!v) return '';
-  if (typeof v === 'string') return v.substring(0, 10);
-  // gviz devuelve fechas como "Date(2026,5,17)" → parsear
-  const m = String(v).match(/Date\((\d+),(\d+),(\d+)/);
-  if (m) {
-    const yy = m[1], mo = String(+m[2]+1).padStart(2,'0'), dd = String(+m[3]).padStart(2,'0');
-    return `${yy}-${mo}-${dd}`;
-  }
-  return String(v).substring(0, 10);
+function fmtDate(s) {
+  if (!s) return '';
+  const [y,mo,d] = String(s).substring(0,10).split('-');
+  const months = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  return `${parseInt(d)} ${months[parseInt(mo)-1]}`;
 }
 
 function today() {
   return new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Santiago' });
-}
-function tomorrow() {
-  const d = new Date();
-  d.setDate(d.getDate() + 1);
-  return d.toLocaleDateString('sv-SE', { timeZone: 'America/Santiago' });
 }
 
 function evColor(ev) {
@@ -69,189 +63,63 @@ function simBarColor(p) {
   if (p >= 40) return '#ffd700';
   return '#ff7043';
 }
+function posOrder(p) {
+  const m = {goalkeeper:0,gk:0,defender:1,cb:1,lb:1,rb:1,wb:1,midfielder:2,cm:2,dm:2,am:2,forward:3,fw:3,st:3,lw:3,rw:3};
+  return m[(p||'').toLowerCase()] ?? 2;
+}
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 const KEY_STORAGE = 'wc2026_key';
+const getSavedKey = () => localStorage.getItem(KEY_STORAGE) || '';
+const saveKey     = k  => localStorage.setItem(KEY_STORAGE, k);
+const clearKey    = () => localStorage.removeItem(KEY_STORAGE);
 
-function getSavedKey() { return localStorage.getItem(KEY_STORAGE) || ''; }
-function saveKey(k)    { localStorage.setItem(KEY_STORAGE, k); }
-function clearKey()    { localStorage.removeItem(KEY_STORAGE); }
-
-// ─── API fetcher (via Cloudflare Worker) ─────────────────────────────────────
-
-async function fetchTab(tab) {
+// ─── API fetcher ──────────────────────────────────────────────────────────────
+async function fetchTab(tab, extraParams) {
   const key = getSavedKey();
-  const url = `${WORKER_URL}/api?tab=${encodeURIComponent(tab)}&key=${encodeURIComponent(key)}`;
+  let url = `${WORKER_URL}/api?tab=${encodeURIComponent(tab)}&key=${encodeURIComponent(key)}`;
+  if (extraParams) url += '&' + new URLSearchParams(extraParams).toString();
   const res  = await fetch(url);
   const json = await res.json();
   if (res.status === 401 || (json && json.error === 'Unauthorized')) {
-    clearKey();
-    showLogin('Clave incorrecta. Inténtalo de nuevo.');
+    clearKey(); showLogin('Clave incorrecta. Inténtalo de nuevo.');
     throw new Error('Unauthorized');
   }
   if (!json.ok) throw new Error(json.error || 'Error del servidor');
   return json.data;
 }
 
-// ─── Cache simple ─────────────────────────────────────────────────────────────
+// ─── Cache ────────────────────────────────────────────────────────────────────
 const cache = {};
-async function getData(tab, ttlMs = 5 * 60 * 1000) {
+async function getData(tab, ttlMs = 5 * 60 * 1000, extraParams) {
+  const cacheKey = tab + (extraParams ? JSON.stringify(extraParams) : '');
   const now = Date.now();
-  if (cache[tab] && (now - cache[tab].ts) < ttlMs) return cache[tab].data;
-  const data = await fetchTab(tab);
-  cache[tab] = { data, ts: now };
+  if (cache[cacheKey] && (now - cache[cacheKey].ts) < ttlMs) return cache[cacheKey].data;
+  const data = await fetchTab(tab, extraParams);
+  cache[cacheKey] = { data, ts: now };
   return data;
 }
 
-// ─── Estado ──────────────────────────────────────────────────────────────────
-const state = { activeGroup: 'A' };
+// ─── State ────────────────────────────────────────────────────────────────────
+const state = { section: 'hoy', activeGroup: 'A', dateView: 'hoy' };
 
-// ─── Loading / Error helpers ──────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 const loadingHtml = () => `<div class="loading-center"><div class="spinner"></div><span>Cargando...</span></div>`;
-const errorHtml   = msg => `<div class="error-state"><div class="icon">⚠️</div><p>${msg}</p></div>`;
-const skeletons   = n => `<div class="matches-grid">${'<div class="skeleton skel-card"></div>'.repeat(n)}</div>`;
+const errorHtml   = m  => `<div class="error-state"><div class="icon">⚠️</div><p>${m}</p></div>`;
+const skeletons   = n  => `<div class="matches-grid">${'<div class="skeleton skel-card"></div>'.repeat(n)}</div>`;
+const emptyHtml   = (icon, msg) => `<div class="error-state"><div class="icon">${icon}</div><p>${msg}</p></div>`;
 
-// ─── Render: Match card ───────────────────────────────────────────────────────
-function renderMatchCard(m, poissonRows) {
-  const mk      = m.match_key || '';
-  const isLive  = ['1H','2H','HT','ET','BT','P'].includes(String(m.status||'').toUpperCase());
-  const isFT    = ['FT','AET','PEN'].includes(String(m.status||'').toUpperCase());
-  const hScore  = m.goles_local     != null ? m.goles_local     : '';
-  const aScore  = m.goles_visitante != null ? m.goles_visitante : '';
-  const hasScore = hScore !== '' && aScore !== '';
-
-  const statusHtml = isLive
-    ? `<span class="status-live">🔴 EN VIVO ${m.status||''}</span>`
-    : isFT ? `<span class="status-ft">FT</span>`
-    : `<span>${formatHora(m.hora_chile || m.hora) || ''}</span>`;
-
-  const scoreHtml = hasScore
-    ? `<div class="match-score">${hScore} - ${aScore}</div>`
-    : `<div class="match-score pending">${formatHora(m.hora_chile || m.hora) || 'vs'}</div>`;
-
-  // Buscar predicción Poisson
-  const pred = poissonRows && poissonRows.find(p => p.match_key === mk || (
-    String(p.local||'').toLowerCase() === String(m.local||'').toLowerCase() &&
-    String(p.visitante||'').toLowerCase() === String(m.visitante||'').toLowerCase()
-  ));
-
-  let probHtml = '';
-  if (pred) {
-    const ph = Number(pred.prob_home || pred.prob_local || 0) * 100;
-    const pd = Number(pred.prob_draw || 0) * 100;
-    const pa = Number(pred.prob_away || pred.prob_visitante || 0) * 100;
-    const lh = Number(pred.lambda_h || pred.lambda_home || 0).toFixed(2);
-    const la = Number(pred.lambda_a || pred.lambda_away || 0).toFixed(2);
-    const o25 = Number(pred.over_2_5 || pred['over_2.5'] || 0) * 100;
-    const btts = Number(pred.btts_yes || pred.btts || 0) * 100;
-    if (ph + pd + pa < 1) { probHtml = ''; }
-    else probHtml = `
-      <div class="prob-bar">
-        <div class="ph" style="width:${ph}%"></div>
-        <div class="pd" style="width:${pd}%"></div>
-        <div class="pa" style="width:${pa}%"></div>
-      </div>
-      <div class="prob-labels">
-        <span class="ph-l">${fmt.pct(ph)}</span>
-        <span style="color:var(--text3)">${fmt.pct(pd)}</span>
-        <span class="pa-l">${fmt.pct(pa)}</span>
-      </div>
-      <div class="match-xg">
-        xG: <span>${lh}</span>–<span>${la}</span>
-        &nbsp;·&nbsp; O2.5: <span>${fmt.pct(o25)}</span>
-        &nbsp;·&nbsp; BTTS: <span>${fmt.pct(btts)}</span>
-      </div>`;
-  }
-
-  const grupoLabel = (m.grupo && !['NS','TBD'].includes(m.grupo.toUpperCase()))
-    ? m.grupo
-    : (m.ronda || '');
-
-  return `
-  <div class="match-card${isLive ? ' live' : ''}">
-    <div class="match-meta">
-      <span class="grupo">${grupoLabel}</span>
-      ${statusHtml}
-    </div>
-    <div class="match-teams">
-      <div class="match-team">
-        <div class="flag">${flag(m.local)}</div>
-        <div class="name">${m.local || ''}</div>
-      </div>
-      ${scoreHtml}
-      <div class="match-team">
-        <div class="flag">${flag(m.visitante)}</div>
-        <div class="name">${m.visitante || ''}</div>
-      </div>
-    </div>
-    ${probHtml}
-  </div>`;
-}
-
-// ─── Sección: HOY ─────────────────────────────────────────────────────────────
-let hoyRefreshInterval = null;
-
-async function renderHoy() {
-  const el = document.getElementById('section-hoy');
-  el.innerHTML = skeletons(3);
-  try {
-    // Tab 'hoy' hace ESPN override en tiempo real — no cachear
-    const [data, preds] = await Promise.all([
-      getData('hoy', 0),
-      getData('predictions').catch(() => [])
-    ]);
-
-    const enVivo     = data.en_vivo    || [];
-    const terminados = data.terminados || [];
-    const proximos   = data.proximos   || [];
-
-    let html = '';
-
-    if (enVivo.length) {
-      document.getElementById('live-badge').style.display = 'inline-flex';
-      html += `<h3 class="section-title">🔴 En vivo <span style="font-size:.7rem;color:var(--text3);font-weight:400;text-transform:none">· actualiza cada 30s</span></h3>
-               <div class="matches-grid">${enVivo.map(m => renderHoyCard(m, preds, true)).join('')}</div>`;
-    } else {
-      document.getElementById('live-badge').style.display = 'none';
-    }
-
-    if (terminados.length) {
-      html += `<h3 class="section-title" style="margin-top:1.5rem">✅ Resultados</h3>
-               <div class="matches-grid">${terminados.map(m => renderHoyCard(m, preds, false)).join('')}</div>`;
-    }
-
-    if (proximos.length) {
-      html += `<h3 class="section-title" style="margin-top:1.5rem">🕒 Próximos</h3>
-               <div class="matches-grid">${proximos.map(m => renderHoyCard(m, preds, false)).join('')}</div>`;
-    }
-
-    if (!html) {
-      html = `<div class="error-state"><div class="icon">📅</div><p>No hay partidos registrados para hoy.</p></div>`;
-    }
-
-    el.innerHTML = html;
-
-    // Auto-refresh cada 30s si hay partidos en vivo
-    clearInterval(hoyRefreshInterval);
-    if (enVivo.length) {
-      hoyRefreshInterval = setInterval(() => {
-        if (state.section === 'hoy') renderHoy();
-      }, 30000);
-    }
-  } catch (e) {
-    el.innerHTML = errorHtml('No se pudo cargar: ' + e.message);
-  }
-}
-
-function renderHoyCard(m, preds, isLiveSection) {
-  const isLive = isLiveSection || ['1H','2H','HT','ET','BT','P','INT','LIVE'].includes(String(m.status||'').toUpperCase());
-  const isFT   = ['FT','AET','PEN'].includes(String(m.status||'').toUpperCase());
+// ─── Match card base ──────────────────────────────────────────────────────────
+function renderMatchCard(m, preds) {
+  const STATUS_LIVE = ['1H','2H','HT','ET','BT','P','INT','LIVE'];
+  const STATUS_FT   = ['FT','AET','PEN'];
+  const st = String(m.status||'').toUpperCase();
+  const isLive = STATUS_LIVE.includes(st);
+  const isFT   = STATUS_FT.includes(st);
 
   const gL = m.goles_local     !== null && m.goles_local     !== undefined ? m.goles_local     : null;
   const gV = m.goles_visitante !== null && m.goles_visitante !== undefined ? m.goles_visitante : null;
-  const hasScore = gL !== null && gV !== null;
 
-  // Status label
   let statusHtml;
   if (isLive) {
     const min = m.minuto ? ` ${m.minuto}` : (m.status ? ` ${m.status}` : '');
@@ -260,19 +128,13 @@ function renderHoyCard(m, preds, isLiveSection) {
     statusHtml = `<span class="status-ft">FT</span>`;
   } else {
     const hora = formatHora(m.hora_chile || m.hora);
-    statusHtml = `<span style="color:var(--text2)">${hora || '–'} hrs</span>`;
+    statusHtml = `<span class="match-time">${hora || '–'}</span>`;
   }
 
-  // Score / vs
-  let scoreHtml;
-  if (hasScore) {
-    const scoreClass = isLive ? 'match-score live-score' : 'match-score';
-    scoreHtml = `<div class="${scoreClass}">${gL} - ${gV}</div>`;
-  } else {
-    scoreHtml = `<div class="match-score pending">vs</div>`;
-  }
+  const scoreHtml = (gL !== null && gV !== null)
+    ? `<div class="match-score${isLive ? ' live-score' : ''}">${gL} – ${gV}</div>`
+    : `<div class="match-score pending">vs</div>`;
 
-  // Predicción Poisson
   const pred = preds && preds.find(p =>
     String(p.local||'').toLowerCase() === String(m.local||'').toLowerCase() &&
     String(p.visitante||'').toLowerCase() === String(m.visitante||'').toLowerCase()
@@ -297,11 +159,10 @@ function renderHoyCard(m, preds, isLiveSection) {
     }
   }
 
-  const grupoLabel = (m.grupo && !['NS','TBD',''].includes(m.grupo.toUpperCase()))
+  const grupoLabel = (m.grupo && !['NS','TBD',''].includes((m.grupo||'').toUpperCase()))
     ? m.grupo : (m.ronda || '');
-
   const mk = m.match_key || '';
-  const clickAttr = mk ? `onclick="showMatchDetail('${mk}')" style="cursor:pointer"` : '';
+  const clickAttr = mk ? `onclick="toggleMatchDetail('${mk}')" style="cursor:pointer"` : '';
 
   return `
   <div class="match-card${isLive ? ' live' : ''}" ${clickAttr}>
@@ -312,12 +173,12 @@ function renderHoyCard(m, preds, isLiveSection) {
     <div class="match-teams">
       <div class="match-team">
         <div class="flag">${flag(m.local)}</div>
-        <div class="name">${m.local || ''}</div>
+        <div class="name">${m.local||''}</div>
       </div>
       ${scoreHtml}
       <div class="match-team">
         <div class="flag">${flag(m.visitante)}</div>
-        <div class="name">${m.visitante || ''}</div>
+        <div class="name">${m.visitante||''}</div>
       </div>
     </div>
     ${probHtml}
@@ -325,232 +186,132 @@ function renderHoyCard(m, preds, isLiveSection) {
   ${mk ? `<div id="detail-${mk}" class="match-detail-inline" style="display:none"></div>` : ''}`;
 }
 
-// ─── Sección: TABLA DE POSICIONES ────────────────────────────────────────────
-async function renderStandings(groupKey) {
-  document.getElementById('standings-content').innerHTML = `<div class="skeleton skel-row"></div>`.repeat(4);
-  try {
-    const grupos = await getData('standings');
-    const letras = Object.keys(grupos).sort();
-    const tabsEl = document.getElementById('groups-tabs');
-    if (!tabsEl.children.length) {
-      tabsEl.innerHTML = letras.map(g =>
-        `<button class="group-tab${g === state.activeGroup ? ' active' : ''}" onclick="switchGroup('${g}')">Grupo ${g}</button>`
-      ).join('');
-    }
-    const active = groupKey || state.activeGroup;
-    const equipo = grupos[active] || grupos[letras[0]] || [];
+// ─── Sección: HOY / AYER / MAÑANA / PRÓXIMOS ─────────────────────────────────
+let hoyRefreshInterval = null;
 
-    document.getElementById('standings-content').innerHTML = `
-    <table class="standings-table">
-      <thead><tr><th>#</th><th>Equipo</th><th>PJ</th><th>PG</th><th>PE</th><th>PP</th><th>GF</th><th>GA</th><th>GD</th><th>Pts</th></tr></thead>
-      <tbody>${equipo.map((t, i) => `
-        <tr class="${i < 2 ? 'classify' : ''}">
-          <td>${i+1}</td>
-          <td><div class="team-cell">${flag(t.equipo)} ${t.equipo}</div></td>
-          <td>${t.pj}</td><td>${t.pg}</td><td>${t.pe}</td><td>${t.pp}</td>
-          <td>${t.gf}</td><td>${t.gc}</td>
-          <td style="color:${t.gd>0?'var(--green)':t.gd<0?'var(--red)':'var(--text2)'}">${t.gd>0?'+':''}${t.gd}</td>
-          <td class="pts">${t.pts}</td>
-        </tr>`).join('')}
-      </tbody>
-    </table>
-    <p style="font-size:.7rem;color:var(--text3);margin-top:.5rem">🟩 Clasifican a octavos de final</p>`;
-  } catch (e) {
-    document.getElementById('standings-content').innerHTML = errorHtml('Error tabla: ' + e.message);
-  }
-}
-function switchGroup(g) {
-  state.activeGroup = g;
-  document.querySelectorAll('.group-tab').forEach(b => b.classList.toggle('active', b.textContent === `Grupo ${g}`));
-  renderStandings(g);
+function switchDateView(view) {
+  state.dateView = view;
+  document.querySelectorAll('.date-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.date === view));
+  renderDateSection();
 }
 
-// ─── Sección: EV ─────────────────────────────────────────────────────────────
-async function renderEV() {
-  document.getElementById('section-ev').innerHTML = `<div class="skeleton skel-row"></div>`.repeat(5);
-  try {
-    const opps = await getData('ev');
+async function renderHoy() {
+  renderDateSection();
+}
 
-    if (!opps.length) {
-      document.getElementById('section-ev').innerHTML = `<div class="error-state"><div class="icon">🔍</div><p>Sin oportunidades EV+ por ahora.</p></div>`;
+async function renderDateSection() {
+  const el = document.getElementById('section-hoy');
+  el.innerHTML = skeletons(4);
+  const view = state.dateView;
+
+  try {
+    if (view === 'proximos') {
+      await renderProximosInline(el);
       return;
     }
-    document.getElementById('section-ev').innerHTML = `
-    <div style="overflow-x:auto">
-    <table class="ev-table">
-      <thead><tr><th>Partido</th><th>Mercado</th><th>Selección</th><th>Modelo</th><th>Cuota</th><th>EV</th><th>Kelly</th></tr></thead>
-      <tbody>${opps.map(r => `
-        <tr>
-          <td>${flag(r.local||'')}${r.local||''} vs ${flag(r.visitante||'')}${r.visitante||''}<br>
-              <small style="color:var(--text3)">${r.fecha||''}</small></td>
-          <td><small>${r.mercado||''}</small></td>
-          <td><strong>${r.seleccion||''}</strong></td>
-          <td>${fmt.pct(Number(r.prob_modelo||0)*100)}</td>
-          <td><strong style="color:var(--gold)">${fmt.dec(r.cuota)}</strong></td>
-          <td><span class="ev-badge ${evColor(r.ev)}">+${(Number(r.ev||0)*100).toFixed(1)}%</span></td>
-          <td style="color:var(--text2)">${(Number(r.kelly||0)*100).toFixed(1)}%</td>
-        </tr>`).join('')}
-      </tbody>
-    </table>
-    </div>
-    <p style="font-size:.7rem;color:var(--text3);margin-top:.75rem">EV = (Prob. modelo × cuota) − 1 · Cuotas: Pinnacle / The Odds API</p>`;
-  } catch (e) {
-    document.getElementById('section-ev').innerHTML = errorHtml('Error EV: ' + e.message);
-  }
-}
 
-// ─── Sección: ELO ────────────────────────────────────────────────────────────
-async function renderElo() {
-  document.getElementById('section-elo').innerHTML = loadingHtml();
-  try {
-    const rows  = await getData('elo');
-    const top20 = rows.slice(0, 20).map(r => [r.equipo, r.elo]);
+    const tab  = view === 'manana' ? 'proximos' : view; // mañana comes from proximos[0]
+    let data, preds;
 
-    document.getElementById('section-elo').innerHTML = `<div class="elo-chart-wrap"><canvas id="elo-chart"></canvas></div>`;
-    new Chart(document.getElementById('elo-chart').getContext('2d'), {
-      type: 'bar',
-      data: {
-        labels: top20.map(([t]) => `${flag(t)} ${t}`),
-        datasets: [{ label: 'ELO', data: top20.map(([,v]) => v),
-          backgroundColor: top20.map((_,i) => i===0?'#ffd700':i<4?'#00c853':i<8?'#448aff':'#546e7a'),
-          borderRadius: 4 }]
-      },
-      options: {
-        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ` ELO: ${c.parsed.x}` } } },
-        scales: {
-          x: { grid: { color:'rgba(30,45,77,.5)' }, ticks: { color:'#90a4ae' },
-               min: top20.length ? top20[top20.length-1][1] - 80 : 1400 },
-          y: { grid: { display:false }, ticks: { color:'#e8eaf6', font:{ size:12 } } }
-        }
+    if (view === 'hoy') {
+      [data, preds] = await Promise.all([getData('hoy', 0), getData('predictions').catch(() => [])]);
+    } else if (view === 'ayer') {
+      [data, preds] = await Promise.all([getData('ayer', 2*60*1000), getData('predictions').catch(() => [])]);
+    } else {
+      // mañana: tomar el primer día de proximos
+      const proxData = await getData('proximos', 5*60*1000);
+      const dias = proxData.dias || [];
+      const mañanaData = dias[0] || { fecha: '', partidos: [] };
+      data = { fecha: mañanaData.fecha, terminados: [], en_vivo: [], proximos: mañanaData.partidos };
+      preds = await getData('predictions').catch(() => []);
+    }
+
+    let html = '';
+
+    if (view === 'hoy') {
+      const enVivo     = data.en_vivo    || [];
+      const terminados = data.terminados || [];
+      const proximos   = data.proximos   || [];
+
+      if (enVivo.length) {
+        document.getElementById('live-badge').style.display = 'inline-flex';
+        html += `<h3 class="section-title">🔴 En vivo <span class="title-sub">actualiza cada 30s</span></h3>
+                 <div class="matches-grid">${enVivo.map(m => renderMatchCard(m, preds)).join('')}</div>`;
+      } else {
+        document.getElementById('live-badge').style.display = 'none';
       }
-    });
-  } catch (e) {
-    document.getElementById('section-elo').innerHTML = errorHtml('Error ELO: ' + e.message);
-  }
-}
+      if (terminados.length) {
+        html += `<h3 class="section-title" style="margin-top:1.5rem">✅ Resultados</h3>
+                 <div class="matches-grid">${terminados.map(m => renderMatchCard(m, preds)).join('')}</div>`;
+      }
+      if (proximos.length) {
+        html += `<h3 class="section-title" style="margin-top:1.5rem">🕒 Próximos hoy</h3>
+                 <div class="matches-grid">${proximos.map(m => renderMatchCard(m, preds)).join('')}</div>`;
+      }
+      if (!html) html = emptyHtml('📅', 'No hay partidos registrados para hoy.');
 
-// ─── Sección: SIMULACIÓN ──────────────────────────────────────────────────────
-async function renderSimulation() {
-  document.getElementById('section-sim').innerHTML = loadingHtml();
-  try {
-    const grupos = await getData('simulation');
-    const letras = Object.keys(grupos).sort();
-    if (!letras.length) {
-      document.getElementById('section-sim').innerHTML = `<div class="error-state"><div class="icon">🎲</div><p>Simulación aún no disponible. Ejecuta runGroupSimulation() en Apps Script.</p></div>`;
-      return;
+      clearInterval(hoyRefreshInterval);
+      if (enVivo.length) {
+        hoyRefreshInterval = setInterval(() => {
+          if (state.section === 'hoy' && state.dateView === 'hoy') { delete cache['hoy']; renderDateSection(); }
+        }, 30000);
+      }
+
+    } else if (view === 'ayer') {
+      const partidos = data.partidos || [];
+      if (!partidos.length) { html = emptyHtml('📅', 'No hay datos de ayer.'); }
+      else {
+        html = `<h3 class="section-title">✅ Resultados de ayer ${data.fecha ? '· ' + fmtDate(data.fecha) : ''}</h3>
+                <div class="matches-grid">${partidos.map(m => renderMatchCard(m, preds)).join('')}</div>`;
+      }
+    } else {
+      // mañana
+      const partidos = (data.proximos || data.partidos || []);
+      const fecha = data.fecha || '';
+      if (!partidos.length) { html = emptyHtml('📅', 'Sin partidos mañana.'); }
+      else {
+        html = `<h3 class="section-title">📅 Mañana ${fecha ? '· ' + fmtDate(fecha) : ''}</h3>
+                <div class="matches-grid">${partidos.map(m => renderMatchCard(m, preds)).join('')}</div>`;
+      }
     }
-    document.getElementById('section-sim').innerHTML = `<div class="sim-grid">${letras.map(g => {
-      const teams = grupos[g];
-      return `<div class="sim-group-card">
-        <div class="sim-group-title">Grupo ${g}</div>
-        ${teams.map(t => {
-          const p = Number(t.prob_clasificar || 0);
-          return `<div class="sim-row">
-            <div class="team-name">${flag(t.equipo)} ${t.equipo}</div>
-            <div class="sim-prob-bar-wrap"><div class="sim-prob-bar" style="width:${Math.min(p,100)}%;background:${simBarColor(p)}"></div></div>
-            <div class="prob-val" style="color:${simBarColor(p)}">${Math.round(p)}%</div>
-          </div>`;
-        }).join('')}
-      </div>`;
-    }).join('')}</div>
-    <p style="font-size:.7rem;color:var(--text3);margin-top:.75rem">Probabilidad de clasificar a octavos · Monte Carlo 2000 simulaciones</p>`;
-  } catch (e) {
-    document.getElementById('section-sim').innerHTML = errorHtml('Error simulación: ' + e.message);
-  }
-}
 
-// ─── Sección: RENDIMIENTO ────────────────────────────────────────────────────
-async function renderPerformance() {
-  document.getElementById('section-perf').innerHTML = loadingHtml();
-  try {
-    const perf = await getData('performance');
-    const cal  = perf.calibration  || {};
-    const bets = perf.bettingStats || {};
-    const roi  = bets.roi  != null ? bets.roi  : null;
-    const wr   = bets.win_rate != null ? bets.win_rate : null;
-
-    const cards = [
-      { label:'Brier Score', val: cal.brier_score ? Number(cal.brier_score).toFixed(3) : '—', type:'blue',  note:'Calibración · menor = mejor' },
-      { label:'Accuracy',    val: cal.accuracy    ? fmt.pct(Number(cal.accuracy)*100)  : '—', type:'green', note:'Predicciones correctas' },
-      { label:'Win Rate',    val: wr !== null      ? fmt.pct(wr)                        : '—', type:'gold',  note:`${bets.ganadas||0}/${bets.total||0} apuestas` },
-      { label:'ROI',         val: roi !== null     ? fmt.sign(roi)                      : '—', type: roi>=0?'green':'red', note:'Retorno sobre inversión' },
-    ];
-    document.getElementById('section-perf').innerHTML = `<div class="perf-grid">${cards.map(c =>`
-      <div class="perf-card ${c.type}">
-        <div class="val">${c.val}</div>
-        <div class="label">${c.label}</div>
-        <div style="font-size:.68rem;color:var(--text3);margin-top:.2rem">${c.note}</div>
-      </div>`).join('')}</div>`;
-  } catch (e) {
-    document.getElementById('section-perf').innerHTML = errorHtml('Error rendimiento: ' + e.message);
-  }
-}
-
-// ─── Sección: EN VIVO ─────────────────────────────────────────────────────────
-let liveInterval = null;
-
-async function renderLive() {
-  document.getElementById('section-live').innerHTML = loadingHtml();
-  try {
-    const matches = await fetchTab('live');
-    if (!matches.length) {
-      document.getElementById('section-live').innerHTML =
-        `<div class="error-state"><div class="icon">📡</div><p>No hay partidos en vivo ahora mismo.</p></div>`;
-      return;
-    }
-    document.getElementById('live-badge').style.display = 'inline-flex';
-    document.getElementById('section-live').innerHTML = matches.map(m => buildLiveCard(m)).join('');
+    el.innerHTML = html;
   } catch(e) {
-    document.getElementById('section-live').innerHTML = errorHtml('Error en vivo: ' + e.message);
+    el.innerHTML = errorHtml('No se pudo cargar: ' + e.message);
   }
 }
 
-function buildLiveCard(m) {
-  const eventIcons = { Goal:'⚽', subst:'🔄', yellowcard:'🟨', yellowredcard:'🟨🟥', redcard:'🟥', var:'📺' };
-  const evHtml = m.eventos.map(ev => {
-    const icon = eventIcons[ev.tipo] || eventIcons[ev.detalle] || '•';
-    const min  = ev.extra ? `${ev.minuto}+${ev.extra}'` : `${ev.minuto}'`;
-    return `<div class="live-event">
-      <span class="live-min">${min}</span>
-      <span class="live-icon">${icon}</span>
-      <span class="live-team">${ev.equipo}</span>
-      <span class="live-player">${ev.jugador}${ev.asistente ? ` <small>(${ev.asistente})</small>` : ''}</span>
-    </div>`;
-  }).join('') || `<p style="color:var(--text3);font-size:.8rem;padding:.5rem 0">Sin eventos registrados aún</p>`;
-
-  const statsHtml = m.stats ? buildStatsBars(m.local, m.visitante, m.stats) : '';
-
-  return `<div class="match-detail-card live">
-    <div class="md-header">
-      <span class="live-pill">🔴 EN VIVO</span>
-      <span style="color:var(--text3);font-size:.8rem">${m.status} · ${m.estadio||''}</span>
-    </div>
-    <div class="md-score">
-      <div class="md-team">${flag(m.local)} <span>${m.local}</span></div>
-      <div class="md-scorebox">${m.goles_local ?? '–'} – ${m.goles_visitante ?? '–'}</div>
-      <div class="md-team right">${flag(m.visitante)} <span>${m.visitante}</span></div>
-    </div>
-    <div class="live-events-list">${evHtml}</div>
-    ${statsHtml}
-  </div>`;
+async function renderProximosInline(el) {
+  try {
+    const [proxData, preds] = await Promise.all([
+      getData('proximos', 5*60*1000),
+      getData('predictions').catch(() => [])
+    ]);
+    const dias = proxData.dias || [];
+    if (!dias.length) { el.innerHTML = emptyHtml('📅', 'No hay próximos partidos.'); return; }
+    el.innerHTML = dias.map(dia => `
+      <div style="margin-bottom:1.5rem">
+        <h3 class="section-title">📅 ${fmtDate(dia.fecha)}</h3>
+        <div class="matches-grid">${(dia.partidos||[]).map(m => renderMatchCard(m, preds)).join('')}</div>
+      </div>`).join('');
+  } catch(e) {
+    el.innerHTML = errorHtml('Error próximos: ' + e.message);
+  }
 }
 
-// ─── Sección: DETALLE DE PARTIDO ─────────────────────────────────────────────
-async function showMatchDetail(matchKey) {
+// ─── Match detail toggle ──────────────────────────────────────────────────────
+async function toggleMatchDetail(matchKey) {
   const el = document.getElementById(`detail-${matchKey}`);
   if (!el) return;
-  if (el.dataset.loaded) { el.style.display = el.style.display === 'none' ? '' : 'none'; return; }
+  if (el.style.display !== 'none') { el.style.display = 'none'; return; }
   el.style.display = '';
+  if (el.dataset.loaded) return;
   el.innerHTML = loadingHtml();
   try {
-    const key = getSavedKey();
-    const url = `${WORKER_URL}/api?tab=match&match_key=${encodeURIComponent(matchKey)}&key=${encodeURIComponent(key)}`;
-    const res  = await fetch(url);
-    const json = await res.json();
-    if (!json.ok) throw new Error(json.error || 'Error');
+    const data = await fetchTab('match', { match_key: matchKey });
     el.dataset.loaded = '1';
-    el.innerHTML = buildMatchDetail(json.data);
+    el.innerHTML = buildMatchDetail(data);
   } catch(e) {
     el.innerHTML = errorHtml('No se pudo cargar el detalle: ' + e.message);
   }
@@ -559,24 +320,25 @@ async function showMatchDetail(matchKey) {
 function buildMatchDetail(m) {
   const eventIcons = { Goal:'⚽', subst:'🔄', yellowcard:'🟨', yellowredcard:'🟨🟥', redcard:'🟥', var:'📺' };
 
-  const evHtml = m.eventos && m.eventos.length
+  const evHtml = (m.eventos && m.eventos.length)
     ? m.eventos.map(ev => {
-        const icon = eventIcons[ev.tipo] || '•';
+        const icon = eventIcons[(ev.tipo||'').toLowerCase()] || '•';
         const min  = ev.extra ? `${ev.minuto}+${ev.extra}'` : `${ev.minuto}'`;
         return `<div class="live-event">
           <span class="live-min">${min}</span>
           <span class="live-icon">${icon}</span>
-          <span class="live-team">${ev.equipo}</span>
-          <span class="live-player">${ev.jugador}${ev.asistente ? ` <small>(${ev.asistente})</small>` : ''}</span>
+          <span class="live-team">${ev.equipo||''}</span>
+          <span class="live-player">${ev.jugador||''}${ev.asistente ? ` <small>(${ev.asistente})</small>` : ''}</span>
         </div>`;
       }).join('')
     : '';
 
-  const statsHtml = m.stats ? buildStatsBars(m.local, m.visitante, m.stats) : '';
+  const statsHtml  = m.stats       ? buildStatsBars(m.local, m.visitante, m.stats) : '';
+  const alinHtml   = buildLineups(m.local, m.visitante, m.alineaciones || []);
 
   const poissonHtml = m.poisson ? `
-    <div style="margin-top:1rem">
-      <div class="section-title" style="font-size:.75rem">🎯 Predicción Poisson</div>
+    <div class="detail-block">
+      <div class="detail-block-title">🎯 Predicción Poisson</div>
       <div class="prob-bar" style="height:10px;margin-bottom:.5rem">
         <div class="ph" style="width:${m.poisson.prob_home}%"></div>
         <div class="pd" style="width:${m.poisson.prob_draw}%"></div>
@@ -587,34 +349,33 @@ function buildMatchDetail(m) {
         <span style="color:var(--text3)">${m.poisson.prob_draw}%</span>
         <span class="pa-l">${m.poisson.prob_away}%</span>
       </div>
-      <div class="match-xg" style="margin-top:.4rem">
-        xG: <span>${m.poisson.lambda_h}</span>–<span>${m.poisson.lambda_a}</span>
+      <div class="match-xg" style="margin-top:.5rem">
+        xG esperado: <span>${m.poisson.lambda_h}</span> – <span>${m.poisson.lambda_a}</span>
         &nbsp;·&nbsp; O2.5: <span>${m.poisson.over25}%</span>
         &nbsp;·&nbsp; BTTS: <span>${m.poisson.btts}%</span>
       </div>
     </div>` : '';
 
-  const alinHtml = buildLineups(m.local, m.visitante, m.alineaciones || []);
-
-  const aiHtml = m.ai && m.ai.resumen ? `
-    <div style="margin-top:1rem">
-      <div class="section-title" style="font-size:.75rem">🤖 Análisis IA</div>
-      <p style="font-size:.82rem;color:var(--text2);line-height:1.6">${m.ai.resumen}</p>
-      ${m.ai.factores ? `<p style="font-size:.78rem;color:var(--text3);margin-top:.4rem">📌 ${m.ai.factores}</p>` : ''}
+  const aiHtml = (m.ai && m.ai.resumen) ? `
+    <div class="detail-block">
+      <div class="detail-block-title">🤖 Análisis IA</div>
+      <p class="ai-text">${m.ai.resumen}</p>
+      ${m.ai.factores ? `<p class="ai-sub">📌 ${m.ai.factores}</p>` : ''}
+      ${m.ai.alertas  ? `<p class="ai-sub ai-alert">⚠️ ${m.ai.alertas}</p>` : ''}
     </div>` : '';
 
-  const h2hHtml = m.h2h && m.h2h.length ? `
-    <div style="margin-top:1rem">
-      <div class="section-title" style="font-size:.75rem">🔁 Historial H2H</div>
-      ${m.h2h.map(h => `<div style="display:flex;justify-content:space-between;font-size:.78rem;padding:.3rem 0;border-bottom:1px solid var(--border)">
+  const h2hHtml = (m.h2h && m.h2h.length) ? `
+    <div class="detail-block">
+      <div class="detail-block-title">🔁 Historial H2H</div>
+      ${m.h2h.map(h => `<div class="h2h-row">
         <span>${flag(h.local)} ${h.local}</span>
-        <strong style="color:var(--gold)">${h.goles_local} – ${h.goles_visitante}</strong>
+        <strong class="h2h-score">${h.goles_local} – ${h.goles_visitante}</strong>
         <span>${flag(h.visitante)} ${h.visitante}</span>
       </div>`).join('')}
     </div>` : '';
 
-  return `<div style="padding:1rem;background:var(--bg2);border-top:1px solid var(--border)">
-    ${evHtml ? `<div class="section-title" style="font-size:.75rem">📋 Eventos</div><div class="live-events-list">${evHtml}</div>` : ''}
+  return `<div class="match-detail-body">
+    ${evHtml ? `<div class="detail-block"><div class="detail-block-title">📋 Eventos</div><div class="live-events-list">${evHtml}</div></div>` : ''}
     ${statsHtml}
     ${poissonHtml}
     ${alinHtml}
@@ -623,20 +384,20 @@ function buildMatchDetail(m) {
   </div>`;
 }
 
+// ─── Stats bars ───────────────────────────────────────────────────────────────
 function buildStatsBars(local, visitante, s) {
   const rows = [
-    ['Posesión %',    s.posesion_local,    s.posesion_visitante,    100],
-    ['Tiros',         s.tiros_local,       s.tiros_visitante,       null],
-    ['Al arco',       s.tiros_arco_local,  s.tiros_arco_visitante,  null],
-    ['Corners',       s.corners_local,     s.corners_visitante,     null],
-    ['Faltas',        s.faltas_local,      s.faltas_visitante,      null],
+    ['Posesión %',   s.posesion_local,    s.posesion_visitante,    100],
+    ['Tiros',        s.tiros_local,       s.tiros_visitante,       null],
+    ['Al arco',      s.tiros_arco_local,  s.tiros_arco_visitante,  null],
+    ['Corners',      s.corners_local,     s.corners_visitante,     null],
+    ['Faltas',       s.faltas_local,      s.faltas_visitante,      null],
     ['Amarillas 🟨', s.amarillas_local,   s.amarillas_visitante,   null],
     ['Rojas 🟥',     s.rojas_local,       s.rojas_visitante,       null],
   ].filter(([,l,v]) => (l||0) + (v||0) > 0);
-
   if (!rows.length) return '';
-  return `<div style="margin-top:1rem">
-    <div class="section-title" style="font-size:.75rem">📊 Estadísticas</div>
+  return `<div class="detail-block">
+    <div class="detail-block-title">📊 Estadísticas</div>
     <div class="stats-compare">
       <div class="stats-header">
         <span class="stats-team-l">${flag(local)} ${local}</span>
@@ -661,72 +422,281 @@ function buildStatsBars(local, visitante, s) {
   </div>`;
 }
 
+// ─── Lineups ──────────────────────────────────────────────────────────────────
 function buildLineups(local, visitante, alineaciones) {
-  if (!alineaciones.length) return '';
-  const local11  = alineaciones.filter(a => a.equipo === local  && a.rol === 'titular').sort((a,b)=>a.numero-b.numero);
+  const local11  = alineaciones.filter(a => a.equipo === local     && a.rol === 'titular').sort((a,b)=>a.numero-b.numero);
   const visit11  = alineaciones.filter(a => a.equipo === visitante && a.rol === 'titular').sort((a,b)=>a.numero-b.numero);
-  const localSub = alineaciones.filter(a => a.equipo === local  && a.rol !== 'titular');
+  const localSub = alineaciones.filter(a => a.equipo === local     && a.rol !== 'titular');
   const visitSub = alineaciones.filter(a => a.equipo === visitante && a.rol !== 'titular');
-
   if (!local11.length && !visit11.length) return '';
-
-  const playerRow = p => `<div class="lineup-player"><span class="lineup-num">${p.numero}</span><span>${p.jugador}</span><span class="lineup-pos">${p.posicion||''}</span></div>`;
-
-  return `<div style="margin-top:1rem">
-    <div class="section-title" style="font-size:.75rem">👥 Alineaciones</div>
+  const row = p => `<div class="lineup-player"><span class="lineup-num">${p.numero}</span><span>${p.jugador}</span><span class="lineup-pos">${p.posicion||''}</span></div>`;
+  return `<div class="detail-block">
+    <div class="detail-block-title">👥 Alineaciones</div>
     <div class="lineups-grid">
       <div class="lineup-col">
         <div class="lineup-team">${flag(local)} ${local}</div>
-        ${local11.map(playerRow).join('')}
+        ${local11.map(row).join('')}
         ${localSub.length ? `<div class="lineup-subs">Suplentes: ${localSub.map(p=>p.jugador).join(', ')}</div>` : ''}
       </div>
       <div class="lineup-col">
         <div class="lineup-team">${flag(visitante)} ${visitante}</div>
-        ${visit11.map(playerRow).join('')}
+        ${visit11.map(row).join('')}
         ${visitSub.length ? `<div class="lineup-subs">Suplentes: ${visitSub.map(p=>p.jugador).join(', ')}</div>` : ''}
       </div>
     </div>
   </div>`;
 }
 
-// ─── Sección: EQUIPOS ─────────────────────────────────────────────────────────
+// ─── En Vivo ──────────────────────────────────────────────────────────────────
+let liveInterval = null;
+
+async function renderLive() {
+  document.getElementById('section-live').innerHTML = loadingHtml();
+  try {
+    const matches = await fetchTab('live');
+    if (!matches.length) {
+      document.getElementById('section-live').innerHTML = emptyHtml('📡', 'No hay partidos en vivo ahora mismo.');
+      return;
+    }
+    document.getElementById('live-badge').style.display = 'inline-flex';
+    document.getElementById('section-live').innerHTML = matches.map(buildLiveCard).join('');
+  } catch(e) {
+    document.getElementById('section-live').innerHTML = errorHtml('Error en vivo: ' + e.message);
+  }
+}
+
+function buildLiveCard(m) {
+  const eventIcons = { goal:'⚽', subst:'🔄', yellowcard:'🟨', yellowredcard:'🟨🟥', redcard:'🟥', var:'📺' };
+  const evHtml = (m.eventos||[]).map(ev => {
+    const icon = eventIcons[(ev.tipo||'').toLowerCase()] || '•';
+    const min  = ev.extra ? `${ev.minuto}+${ev.extra}'` : `${ev.minuto}'`;
+    return `<div class="live-event">
+      <span class="live-min">${min}</span>
+      <span class="live-icon">${icon}</span>
+      <span class="live-team">${ev.equipo||''}</span>
+      <span class="live-player">${ev.jugador||''}${ev.asistente ? ` <small>(${ev.asistente})</small>` : ''}</span>
+    </div>`;
+  }).join('') || `<p style="color:var(--text3);font-size:.8rem;padding:.5rem 0">Sin eventos registrados aún</p>`;
+  const statsHtml = m.stats ? buildStatsBars(m.local, m.visitante, m.stats) : '';
+  return `<div class="match-detail-card live">
+    <div class="md-header">
+      <span class="live-pill">🔴 EN VIVO</span>
+      <span style="color:var(--text3);font-size:.8rem">${m.status||''} · ${m.estadio||''}</span>
+    </div>
+    <div class="md-score">
+      <div class="md-team">${flag(m.local)} <span>${m.local||''}</span></div>
+      <div class="md-scorebox">${m.goles_local??'–'} – ${m.goles_visitante??'–'}</div>
+      <div class="md-team right">${flag(m.visitante)} <span>${m.visitante||''}</span></div>
+    </div>
+    <div class="live-events-list">${evHtml}</div>
+    ${statsHtml}
+  </div>`;
+}
+
+// ─── Posiciones ───────────────────────────────────────────────────────────────
+async function renderStandings(groupKey) {
+  document.getElementById('standings-content').innerHTML = `<div class="skeleton skel-row"></div>`.repeat(4);
+  try {
+    const grupos = await getData('standings');
+    const letras = Object.keys(grupos).sort();
+    const tabsEl = document.getElementById('groups-tabs');
+    if (!tabsEl.children.length) {
+      tabsEl.innerHTML = letras.map(g =>
+        `<button class="group-tab${g === state.activeGroup ? ' active' : ''}" onclick="switchGroup('${g}')">Grupo ${g}</button>`
+      ).join('');
+    }
+    const active = groupKey || state.activeGroup;
+    const equipo = grupos[active] || grupos[letras[0]] || [];
+    document.getElementById('standings-content').innerHTML = `
+    <table class="standings-table">
+      <thead><tr><th>#</th><th>Equipo</th><th>PJ</th><th>PG</th><th>PE</th><th>PP</th><th>GF</th><th>GA</th><th>GD</th><th>Pts</th></tr></thead>
+      <tbody>${equipo.map((t, i) => `
+        <tr class="${i < 2 ? 'classify' : ''}" onclick="filterTeamMatches('${t.equipo}')" style="cursor:pointer">
+          <td>${i+1}</td>
+          <td><div class="team-cell">${flag(t.equipo)} ${t.equipo}</div></td>
+          <td>${t.pj}</td><td>${t.pg}</td><td>${t.pe}</td><td>${t.pp}</td>
+          <td>${t.gf}</td><td>${t.gc}</td>
+          <td style="color:${t.gd>0?'var(--green)':t.gd<0?'var(--red)':'var(--text2)'}">${t.gd>0?'+':''}${t.gd}</td>
+          <td class="pts">${t.pts}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+    <p style="font-size:.7rem;color:var(--text3);margin-top:.5rem">🟩 Clasifican a octavos · click en equipo para ver squad</p>`;
+  } catch(e) {
+    document.getElementById('standings-content').innerHTML = errorHtml('Error tabla: ' + e.message);
+  }
+}
+function switchGroup(g) {
+  state.activeGroup = g;
+  document.querySelectorAll('.group-tab').forEach(b => b.classList.toggle('active', b.textContent === `Grupo ${g}`));
+  renderStandings(g);
+}
+function filterTeamMatches(equipo) {
+  showSection('equipos');
+  setTimeout(() => showTeamSquad(equipo), 300);
+}
+
+// ─── EV ───────────────────────────────────────────────────────────────────────
+async function renderEV() {
+  document.getElementById('section-ev').innerHTML = `<div class="skeleton skel-row"></div>`.repeat(5);
+  try {
+    const opps = await getData('ev');
+    if (!opps.length) {
+      document.getElementById('section-ev').innerHTML = emptyHtml('🔍', 'Sin oportunidades EV+ por ahora.');
+      return;
+    }
+    document.getElementById('section-ev').innerHTML = `
+    <div style="overflow-x:auto">
+    <table class="ev-table">
+      <thead><tr><th>Partido</th><th>Mercado</th><th>Selección</th><th>Modelo</th><th>Cuota</th><th>EV</th><th>Kelly%</th></tr></thead>
+      <tbody>${opps.map(r => `
+        <tr>
+          <td>${flag(r.local||'')} ${r.local||''} vs ${flag(r.visitante||'')} ${r.visitante||''}<br>
+              <small style="color:var(--text3)">${r.fecha||''}</small></td>
+          <td><small>${r.mercado||''}</small></td>
+          <td><strong>${r.seleccion||''}</strong></td>
+          <td>${fmt.pct(Number(r.prob_modelo||0)*100)}</td>
+          <td><strong style="color:var(--gold)">${fmt.dec(r.cuota)}</strong></td>
+          <td><span class="ev-badge ${evColor(r.ev)}">+${(Number(r.ev||0)*100).toFixed(1)}%</span></td>
+          <td style="color:var(--text2)">${(Number(r.kelly||0)*100).toFixed(1)}%</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+    </div>
+    <p class="table-note">EV = (Prob. modelo × cuota) − 1 · Cuotas: Pinnacle / The Odds API</p>`;
+  } catch(e) {
+    document.getElementById('section-ev').innerHTML = errorHtml('Error EV: ' + e.message);
+  }
+}
+
+// ─── ELO ──────────────────────────────────────────────────────────────────────
+async function renderElo() {
+  document.getElementById('section-elo').innerHTML = loadingHtml();
+  try {
+    const rows  = await getData('elo');
+    const top24 = rows.slice(0, 24);
+    document.getElementById('section-elo').innerHTML = `
+      <div class="elo-chart-wrap"><canvas id="elo-chart"></canvas></div>
+      <div class="elo-legend">
+        <span class="elo-leg gold">🥇 Líder</span>
+        <span class="elo-leg green">Top 4</span>
+        <span class="elo-leg blue">Top 8</span>
+        <span class="elo-leg grey">Resto</span>
+      </div>`;
+    new Chart(document.getElementById('elo-chart').getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: top24.map(r => `${flag(r.equipo)} ${r.equipo}`),
+        datasets: [{
+          label: 'ELO',
+          data: top24.map(r => r.elo),
+          backgroundColor: top24.map((_,i) => i===0?'#ffd700':i<4?'#00c853':i<8?'#448aff':'#546e7a'),
+          borderRadius: 4,
+          borderSkipped: false
+        }]
+      },
+      options: {
+        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+        plugins: { legend:{display:false}, tooltip:{ callbacks:{ label: c => ` ELO: ${c.parsed.x}` } } },
+        scales: {
+          x: { grid:{color:'rgba(30,45,77,.5)'}, ticks:{color:'#90a4ae'},
+               min: top24.length ? top24[top24.length-1].elo - 100 : 1300 },
+          y: { grid:{display:false}, ticks:{color:'#e8eaf6', font:{size:11}} }
+        }
+      }
+    });
+  } catch(e) {
+    document.getElementById('section-elo').innerHTML = errorHtml('Error ELO: ' + e.message);
+  }
+}
+
+// ─── Simulación ───────────────────────────────────────────────────────────────
+async function renderSimulation() {
+  document.getElementById('section-sim').innerHTML = loadingHtml();
+  try {
+    const grupos = await getData('simulation');
+    const letras = Object.keys(grupos).sort();
+    if (!letras.length) {
+      document.getElementById('section-sim').innerHTML = emptyHtml('🎲', 'Simulación aún no disponible.');
+      return;
+    }
+    document.getElementById('section-sim').innerHTML = `<div class="sim-grid">${letras.map(g => {
+      const teams = grupos[g];
+      return `<div class="sim-group-card">
+        <div class="sim-group-title">Grupo ${g}</div>
+        ${teams.map(t => {
+          const p = Number(t.prob_clasificar||0);
+          return `<div class="sim-row">
+            <div class="sim-team">${flag(t.equipo)} ${t.equipo}</div>
+            <div class="sim-bar-wrap"><div class="sim-bar" style="width:${Math.min(p,100)}%;background:${simBarColor(p)}"></div></div>
+            <div class="sim-val" style="color:${simBarColor(p)}">${Math.round(p)}%</div>
+          </div>`;
+        }).join('')}
+      </div>`;
+    }).join('')}</div>
+    <p class="table-note">Probabilidad de clasificar a octavos · Monte Carlo 2000 simulaciones</p>`;
+  } catch(e) {
+    document.getElementById('section-sim').innerHTML = errorHtml('Error simulación: ' + e.message);
+  }
+}
+
+// ─── Rendimiento ──────────────────────────────────────────────────────────────
+async function renderPerformance() {
+  document.getElementById('section-perf').innerHTML = loadingHtml();
+  try {
+    const perf = await getData('performance');
+    const cal  = perf.calibration  || {};
+    const bets = perf.bettingStats || {};
+    const roi  = bets.roi      != null ? bets.roi      : null;
+    const wr   = bets.win_rate != null ? bets.win_rate : null;
+    const cards = [
+      { label:'Brier Score', val: cal.brier_score ? Number(cal.brier_score).toFixed(3) : '—', type:'blue',  note:'Calibración · menor = mejor' },
+      { label:'Accuracy',    val: cal.accuracy    ? fmt.pct(Number(cal.accuracy)*100)  : '—', type:'green', note:'Predicciones correctas' },
+      { label:'Win Rate',    val: wr !== null      ? fmt.pct(wr)                        : '—', type:'gold',  note:`${bets.ganadas||0}/${bets.total||0} apuestas` },
+      { label:'ROI',         val: roi !== null     ? fmt.sign(roi)                      : '—', type: roi>=0?'green':'red', note:'Retorno sobre inversión' },
+    ];
+    document.getElementById('section-perf').innerHTML = `<div class="perf-grid">${cards.map(c =>
+      `<div class="perf-card ${c.type}">
+        <div class="val">${c.val}</div>
+        <div class="label">${c.label}</div>
+        <div class="note">${c.note}</div>
+      </div>`).join('')}</div>`;
+  } catch(e) {
+    document.getElementById('section-perf').innerHTML = errorHtml('Error rendimiento: ' + e.message);
+  }
+}
+
+// ─── Equipos ──────────────────────────────────────────────────────────────────
 async function renderTeams() {
   document.getElementById('section-teams').innerHTML = loadingHtml();
   try {
-    const teams = await getData('teams', 10 * 60 * 1000);
-    if (!teams.length) {
-      document.getElementById('section-teams').innerHTML =
-        `<div class="error-state"><div class="icon">🏳️</div><p>No hay datos de equipos aún.</p></div>`;
-      return;
-    }
+    const teams = await getData('teams', 10*60*1000);
+    if (!teams.length) { document.getElementById('section-teams').innerHTML = emptyHtml('🏳️', 'No hay datos de equipos.'); return; }
 
+    // Agrupar
     const grupos = {};
-    teams.forEach(t => {
-      const g = t.grupo || 'Sin grupo';
-      if (!grupos[g]) grupos[g] = [];
-      grupos[g].push(t);
-    });
-
-    const formaColor = r => ({ W:'var(--green)', D:'var(--text3)', L:'var(--red)' })[r] || 'var(--text3)';
+    teams.forEach(t => { const g = t.grupo||'Sin grupo'; if (!grupos[g]) grupos[g]=[]; grupos[g].push(t); });
+    const formaColor = r => ({W:'var(--green)',D:'var(--text3)',L:'var(--red)'})[r]||'var(--text3)';
 
     document.getElementById('section-teams').innerHTML = Object.keys(grupos).sort().map(g => `
-      <div style="margin-bottom:1.5rem">
+      <div style="margin-bottom:2rem">
         <h3 class="section-title">Grupo ${g}</h3>
         <div class="teams-grid">
           ${grupos[g].map(t => `
-            <div class="team-card">
+            <div class="team-card" onclick="showTeamSquad('${t.nombre}')" style="cursor:pointer">
               <div class="team-card-top">
                 <span class="team-flag-big">${flag(t.nombre)}</span>
-                <div>
+                <div class="team-card-info">
                   <div class="team-name-big">${t.nombre}</div>
-                  <div style="font-size:.72rem;color:var(--text3)">${t.confederacion||''} ${t.entrenador ? `· ${t.entrenador}` : ''}</div>
+                  <div class="team-card-sub">${t.confederacion||''} ${t.entrenador ? `· ${t.entrenador}` : ''}</div>
                 </div>
-                ${t.pos ? `<div class="team-pos">#${t.pos} <small style="color:var(--text3)">${t.pts}pts</small></div>` : ''}
+                ${t.pos ? `<div class="team-pos">#${t.pos} <small>${t.pts}pts</small></div>` : ''}
               </div>
-              ${t.elo ? `<div class="team-elo">ELO <strong style="color:var(--gold)">${Math.round(t.elo)}</strong></div>` : ''}
+              ${t.elo ? `<div class="team-elo">ELO <strong>${Math.round(t.elo)}</strong></div>` : ''}
               ${t.forma ? `<div class="team-forma">${t.forma.split('').slice(-5).map(r =>
                 `<span class="forma-dot" style="background:${formaColor(r)}">${r}</span>`
               ).join('')}</div>` : ''}
+              <div id="squad-${t.nombre.replace(/\s/g,'_')}" class="squad-inline" style="display:none"></div>
             </div>`).join('')}
         </div>
       </div>`).join('');
@@ -735,53 +705,160 @@ async function renderTeams() {
   }
 }
 
-// ─── Sección: JUGADORES ──────────────────────────────────────────────────────
+async function showTeamSquad(nombre) {
+  const safeId = nombre.replace(/\s/g, '_');
+  const el = document.getElementById(`squad-${safeId}`);
+  if (!el) return;
+  if (el.style.display !== 'none') { el.style.display = 'none'; return; }
+  el.style.display = '';
+  if (el.dataset.loaded) return;
+  el.innerHTML = `<div class="loading-center" style="padding:.5rem"><div class="spinner" style="width:20px;height:20px"></div></div>`;
+  try {
+    const squad = await getData('squad', 15*60*1000, { equipo: nombre });
+    if (!squad.jugadores || !squad.jugadores.length) { el.innerHTML = '<p style="color:var(--text3);font-size:.8rem;padding:.5rem 0">Sin datos de plantel.</p>'; return; }
+    el.dataset.loaded = '1';
+    const byPos = { Goalkeeper:[], Defender:[], Midfielder:[], Forward:[] };
+    const posLabel = { Goalkeeper:'Porteros 🧤', Defender:'Defensas 🛡️', Midfielder:'Medios ⚙️', Forward:'Delanteros ⚡' };
+    squad.jugadores.forEach(p => {
+      const pos = p.posicion || 'Midfielder';
+      const k = Object.keys(byPos).find(k => pos.toLowerCase().includes(k.toLowerCase())) || 'Midfielder';
+      byPos[k].push(p);
+    });
+    el.innerHTML = `<div class="squad-grid">${Object.entries(byPos).filter(([,v])=>v.length).map(([pos,players]) => `
+      <div class="squad-pos-group">
+        <div class="squad-pos-label">${posLabel[pos]||pos}</div>
+        <div class="squad-players">${players.map(p => `
+          <div class="squad-player">
+            ${p.foto ? `<img src="${p.foto}" class="squad-photo" onerror="this.style.display='none'">` : `<div class="squad-photo-ph">${(p.nombre||'?').charAt(0)}</div>`}
+            <div class="squad-player-info">
+              <span class="squad-player-name">${p.nombre||''}</span>
+              <span class="squad-player-meta">${p.edad ? p.edad+'a' : ''} ${p.goles>0?`· ⚽${p.goles}`:''}</span>
+            </div>
+          </div>`).join('')}
+        </div>
+      </div>`).join('')}</div>`;
+  } catch(e) {
+    el.innerHTML = errorHtml('Error cargando plantel');
+  }
+}
+
+// ─── Jugadores ────────────────────────────────────────────────────────────────
 async function renderPlayers() {
   document.getElementById('section-players').innerHTML = loadingHtml();
   try {
-    const players = await getData('players', 10 * 60 * 1000);
+    const players = await getData('players', 10*60*1000);
     if (!players.length) {
-      document.getElementById('section-players').innerHTML =
-        `<div class="error-state"><div class="icon">👤</div><p>No hay estadísticas de jugadores aún. Se cargan al terminar los partidos.</p></div>`;
+      document.getElementById('section-players').innerHTML = emptyHtml('👤', 'No hay estadísticas de jugadores aún.');
       return;
     }
-    document.getElementById('section-players').innerHTML = `
-    <div style="overflow-x:auto">
-    <table class="standings-table">
-      <thead><tr>
-        <th>#</th><th>Jugador</th><th>Equipo</th>
-        <th title="Goles">⚽</th><th title="Asistencias">🎯</th>
-        <th title="Partidos">PJ</th><th title="Minutos">Min</th>
-        <th title="Amarillas">🟨</th><th title="Rojas">🟥</th>
-      </tr></thead>
-      <tbody>${players.map((p, i) => `
-        <tr>
-          <td style="color:var(--text3)">${i+1}</td>
-          <td><strong>${p.jugador}</strong></td>
-          <td>${flag(p.equipo)} ${p.equipo}</td>
-          <td><strong style="color:var(--gold)">${p.goles}</strong></td>
-          <td>${p.asistencias}</td>
-          <td style="color:var(--text2)">${p.partidos}</td>
-          <td style="color:var(--text3)">${p.minutos}'</td>
-          <td>${p.amarillas||0}</td>
-          <td>${p.rojas||0}</td>
-        </tr>`).join('')}
-      </tbody>
-    </table>
-    </div>`;
+    const topScorers  = players.filter(p => p.goles > 0);
+    const withAssists = players.filter(p => p.goles === 0 && p.asistencias > 0);
+
+    const playerRow = (p, i, showRank) => {
+      const photoHtml = p.foto
+        ? `<img src="${p.foto}" alt="${p.jugador}" class="player-photo" onerror="this.style.display='none'">`
+        : `<div class="player-photo-placeholder">${p.jugador.charAt(0)}</div>`;
+      const posTag = p.posicion ? `<span class="player-pos">${p.posicion.substring(0,3).toUpperCase()}</span>` : '';
+      return `<tr>
+        ${showRank ? `<td class="rank-cell" style="color:var(--${i<3?'gold':'text3'})">${i+1}</td>` : '<td></td>'}
+        <td><div class="player-cell">
+          ${photoHtml}
+          <div class="player-info"><strong>${p.jugador}</strong>${posTag}</div>
+        </div></td>
+        <td>${flag(p.equipo)} <span class="hide-xs">${p.equipo}</span></td>
+        <td><strong style="color:var(--gold)">${p.goles}</strong></td>
+        <td>${p.asistencias}</td>
+        <td style="color:var(--text2)">${p.partidos}</td>
+        <td style="color:var(--text3)">${p.minutos?p.minutos+"'":'–'}</td>
+        <td>${p.amarillas||0}</td><td>${p.rojas||0}</td>
+      </tr>`;
+    };
+
+    const thead = `<thead><tr>
+      <th>#</th><th>Jugador</th><th>Equipo</th>
+      <th title="Goles">⚽</th><th title="Asistencias">🎯</th>
+      <th title="PJ">PJ</th><th title="Min">Min</th>
+      <th title="Amarillas">🟨</th><th title="Rojas">🟥</th>
+    </tr></thead>`;
+
+    let html = `<div style="overflow-x:auto"><table class="standings-table players-table">${thead}<tbody>`;
+    if (topScorers.length) {
+      html += `<tr class="table-section-header"><td colspan="9">⚽ Goleadores</td></tr>`;
+      html += topScorers.map((p,i) => playerRow(p,i,true)).join('');
+    }
+    if (withAssists.length) {
+      html += `<tr class="table-section-header"><td colspan="9">🎯 Asistidores</td></tr>`;
+      html += withAssists.map((p,i) => playerRow(p,i,false)).join('');
+    }
+    html += `</tbody></table></div>`;
+    document.getElementById('section-players').innerHTML = html;
   } catch(e) {
     document.getElementById('section-players').innerHTML = errorHtml('Error jugadores: ' + e.message);
   }
 }
 
-// ─── Override renderHoy para añadir click → detalle ──────────────────────────
-const _origRenderMatchCard = renderMatchCard;
-function renderMatchCardClickable(m, poissonRows) {
-  const inner = _origRenderMatchCard(m, poissonRows);
-  const mk = m.match_key || '';
-  if (!mk) return inner;
-  const wrapped = inner.replace('<div class="match-card', `<div class="match-card" onclick="showMatchDetail('${mk}')" style="cursor:pointer"`);
-  return wrapped + `<div id="detail-${mk}" class="match-detail-inline" style="display:none"></div>`;
+// ─── Stats de equipo ──────────────────────────────────────────────────────────
+async function renderStats() {
+  document.getElementById('section-stats').innerHTML = loadingHtml();
+  try {
+    const stats = await getData('stats', 10*60*1000);
+    if (!stats.length) { document.getElementById('section-stats').innerHTML = emptyHtml('📈', 'Sin estadísticas acumuladas aún.'); return; }
+    document.getElementById('section-stats').innerHTML = `
+    <div style="overflow-x:auto">
+    <table class="standings-table stats-table">
+      <thead><tr>
+        <th>Equipo</th><th title="PJ">PJ</th><th title="Victorias">W</th><th title="Empates">D</th><th title="Derrotas">L</th>
+        <th title="Goles">GF</th><th title="Goles en contra">GA</th>
+        <th title="Posesión promedio">Pos%</th><th title="Tiros">Tiros</th>
+        <th title="Al arco">Arco</th><th title="Corners">Corn.</th>
+        <th title="Amarillas">🟨</th>
+      </tr></thead>
+      <tbody>${stats.map(t => `
+        <tr onclick="showTeamSquad('${t.equipo}');showSection('equipos')" style="cursor:pointer">
+          <td><div class="team-cell">${flag(t.equipo)} <strong>${t.equipo}</strong></div></td>
+          <td>${t.pj||0}</td>
+          <td style="color:var(--green)">${t.pg||0}</td>
+          <td style="color:var(--text3)">${t.pe||0}</td>
+          <td style="color:var(--red)">${t.pp||0}</td>
+          <td><strong style="color:var(--gold)">${t.gf||0}</strong></td>
+          <td style="color:var(--text2)">${t.ga||0}</td>
+          <td>${t.posesion_avg ? Number(t.posesion_avg).toFixed(1)+'%' : '–'}</td>
+          <td>${t.tiros||0}</td>
+          <td>${t.tiros_arco||0}</td>
+          <td>${t.corners||0}</td>
+          <td>${t.amarillas||0}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+    </div>
+    <p class="table-note">Click en equipo para ver plantel · Acumulado del torneo</p>`;
+  } catch(e) {
+    document.getElementById('section-stats').innerHTML = errorHtml('Error stats: ' + e.message);
+  }
+}
+
+// ─── Noticias ─────────────────────────────────────────────────────────────────
+async function renderNoticias() {
+  document.getElementById('section-noticias').innerHTML = loadingHtml();
+  try {
+    const noticias = await getData('noticias', 5*60*1000);
+    if (!noticias.length) { document.getElementById('section-noticias').innerHTML = emptyHtml('📰', 'Sin noticias recientes.'); return; }
+    document.getElementById('section-noticias').innerHTML = `
+      <div class="news-grid">${noticias.map(n => `
+        <div class="news-card${n.url ? ' clickable' : ''}" ${n.url ? `onclick="window.open('${n.url}','_blank')"` : ''}>
+          <div class="news-meta">
+            ${n.equipo ? `<span class="news-team">${flag(n.equipo)} ${n.equipo}</span>` : ''}
+            <span class="news-date">${fmtDate(n.fecha)||''}</span>
+            ${n.fuente ? `<span class="news-source">${n.fuente}</span>` : ''}
+          </div>
+          <h3 class="news-title">${n.titulo||''}</h3>
+          ${n.resumen ? `<p class="news-summary">${n.resumen}</p>` : ''}
+          ${n.url ? `<span class="news-link">Leer más →</span>` : ''}
+        </div>`).join('')}
+      </div>`;
+  } catch(e) {
+    document.getElementById('section-noticias').innerHTML = errorHtml('Error noticias: ' + e.message);
+  }
 }
 
 // ─── Navegación ───────────────────────────────────────────────────────────────
@@ -791,24 +868,25 @@ const renderers = {
   hoy:         renderHoy,
   live:        renderLive,
   tabla:       renderStandings,
+  equipos:     renderTeams,
+  jugadores:   renderPlayers,
+  stats:       renderStats,
+  noticias:    renderNoticias,
   ev:          renderEV,
   elo:         renderElo,
   simulacion:  renderSimulation,
   rendimiento: renderPerformance,
-  equipos:     renderTeams,
-  jugadores:   renderPlayers
 };
 
 function showSection(id) {
+  state.section = id;
   document.querySelectorAll('.section-panel').forEach(s => s.style.display = s.id === `panel-${id}` ? '' : 'none');
   document.querySelectorAll('nav a').forEach(a => a.classList.toggle('active', a.dataset.section === id));
 
-  // Auto-polling en vivo cada 30s
   if (liveRefreshInterval) { clearInterval(liveRefreshInterval); liveRefreshInterval = null; }
   if (id === 'live') {
-    liveRefreshInterval = setInterval(() => { delete cache['live']; renderLive(); }, 30 * 1000);
+    liveRefreshInterval = setInterval(() => { delete cache['live']; renderLive(); }, 30000);
   }
-
   if (renderers[id]) renderers[id]();
 }
 
@@ -818,8 +896,8 @@ function showLogin(errorMsg) {
   document.getElementById('config-banner').style.display = 'none';
   document.getElementById('login-screen').style.display  = '';
   const errEl = document.getElementById('login-error');
-  errEl.textContent    = errorMsg || '';
-  errEl.style.display  = errorMsg ? '' : 'none';
+  errEl.textContent   = errorMsg || '';
+  errEl.style.display = errorMsg ? '' : 'none';
 }
 
 function initApp() {
@@ -837,11 +915,9 @@ function initApp() {
   showSection('hoy');
 
   setInterval(() => {
-    delete cache['dashboard'];
-    delete cache['ev'];
-    const sec = document.querySelector('nav a.active')?.dataset.section;
-    if (sec && renderers[sec]) renderers[sec]();
-  }, 5 * 60 * 1000);
+    ['hoy','dashboard','ev'].forEach(t => delete cache[t]);
+    if (renderers[state.section]) renderers[state.section]();
+  }, 5*60*1000);
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
@@ -852,7 +928,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('login-screen').style.display  = 'none';
     return;
   }
-
   document.getElementById('login-form').addEventListener('submit', async e => {
     e.preventDefault();
     const key = document.getElementById('login-key').value.trim();
@@ -860,11 +935,10 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       await fetchTab('dashboard');
       initApp();
-    } catch (err) {
-      if (err.message !== 'Unauthorized') initApp(); // error de red, dejar pasar
+    } catch(err) {
+      if (err.message !== 'Unauthorized') initApp();
     }
   });
-
   if (getSavedKey()) {
     fetchTab('dashboard')
       .then(() => initApp())
