@@ -642,7 +642,8 @@ async function renderSimulation() {
       return `<div class="sim-group-card">
         <div class="sim-group-title">Grupo ${g}</div>
         ${teams.map(t => {
-          const p = Number(t.prob_clasificar||0);
+          // prob_clasificar stored as decimal 0-1, convert to %
+          const p = Number(t.prob_clasificar||0) * (Number(t.prob_clasificar||0) <= 1 ? 100 : 1);
           return `<div class="sim-row">
             <div class="sim-team">${flag(t.equipo)} ${t.equipo}</div>
             <div class="sim-bar-wrap"><div class="sim-bar" style="width:${Math.min(p,100)}%;background:${simBarColor(p)}"></div></div>
