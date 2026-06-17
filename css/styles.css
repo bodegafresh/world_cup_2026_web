@@ -437,6 +437,18 @@ main {
 .ev-table td { padding: .55rem .75rem; border-bottom: 1px solid rgba(30,45,77,.5); }
 .ev-table tr:last-child td { border-bottom: none; }
 .ev-table tr:hover td { background: rgba(255,255,255,.02); }
+
+@media(max-width:640px) {
+  .ev-table thead { display: none; }
+  .ev-table, .ev-table tbody, .ev-table tr, .ev-table td { display: block; width: 100%; box-sizing: border-box; }
+  .ev-table tr { border-bottom: 1px solid var(--border); padding: .7rem .75rem; }
+  .ev-table tr:last-child { border-bottom: none; }
+  .ev-table td { padding: .1rem 0; border: none; font-size: .8rem; }
+  .ev-table td:first-child { font-size: .83rem; font-weight: 600; padding-bottom: .3rem; }
+  .ev-table td::before { content: attr(data-label) ': '; font-size: .68rem; color: var(--text3); text-transform: uppercase; letter-spacing: .04em; }
+  .ev-table td:first-child::before, .ev-table td:nth-child(2)::before, .ev-table td:nth-child(3)::before { content: ''; }
+  .ev-table td:nth-child(6), .ev-table td:nth-child(7) { display: inline-block; margin-right: .5rem; }
+}
 .ev-badge {
   display: inline-block;
   padding: .15rem .45rem;

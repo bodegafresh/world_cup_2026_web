@@ -810,10 +810,10 @@ async function renderEV() {
                 <small style="color:var(--text3)">${r.fecha||''}</small></td>
             <td><small>${r.mercado||''}</small></td>
             <td><strong>${r.seleccion||''}</strong></td>
-            <td>${fmt.pct(Number(r.prob_modelo||0)*100)}</td>
-            <td><strong style="color:var(--gold)">${fmt.dec(r.cuota)}</strong></td>
-            <td><span class="ev-badge ${evColor(r.ev)}">+${(Number(r.ev||0)*100).toFixed(1)}%</span></td>
-            <td style="color:var(--text2)">${(Number(r.kelly||0)*100).toFixed(1)}%</td>
+            <td data-label="Modelo">${fmt.pct(Number(r.prob_modelo||0)*100)}</td>
+            <td data-label="Cuota"><strong style="color:var(--gold)">${fmt.dec(r.cuota)}</strong></td>
+            <td data-label="EV"><span class="ev-badge ${evColor(r.ev)}">+${(Number(r.ev||0)*100).toFixed(1)}%</span></td>
+            <td data-label="Kelly%"><span style="color:var(--text2)">${(Number(r.kelly||0)*100).toFixed(1)}%</span></td>
           </tr>`).join('')}
         </tbody>
       </table>
