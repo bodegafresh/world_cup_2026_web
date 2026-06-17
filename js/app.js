@@ -189,37 +189,140 @@ function renderMatchCard(m, poissonRows) {
 }
 
 // ─── Sección: HOY ─────────────────────────────────────────────────────────────
-async function renderHoy() {
-  document.getElementById('section-hoy').innerHTML = skeletons(3);
-  try {
-    const dash  = await getData('dashboard', 2 * 60 * 1000);
-    const preds = await getData('predictions').catch(() => []);
+let hoyRefreshInterval = null;
 
-    const enVivo     = dash.en_vivo  || [];
-    const pendientes = dash.hoy      || [];
-    const matchMan   = dash.mañana   || [];
+async function renderHoy() {
+  const el = document.getElementById('section-hoy');
+  el.innerHTML = skeletons(3);
+  try {
+    // Tab 'hoy' hace ESPN override en tiempo real — no cachear
+    const [data, preds] = await Promise.all([
+      getData('hoy', 0),
+      getData('predictions').catch(() => [])
+    ]);
+
+    const enVivo     = data.en_vivo    || [];
+    const terminados = data.terminados || [];
+    const proximos   = data.proximos   || [];
 
     let html = '';
+
     if (enVivo.length) {
-      html += `<h3 class="section-title">🔴 En vivo</h3>
-               <div class="matches-grid">${enVivo.map(m => renderMatchCard(m, preds)).join('')}</div>`;
       document.getElementById('live-badge').style.display = 'inline-flex';
+      html += `<h3 class="section-title">🔴 En vivo <span style="font-size:.7rem;color:var(--text3);font-weight:400;text-transform:none">· actualiza cada 30s</span></h3>
+               <div class="matches-grid">${enVivo.map(m => renderHoyCard(m, preds, true)).join('')}</div>`;
+    } else {
+      document.getElementById('live-badge').style.display = 'none';
     }
-    if (pendientes.length) {
-      html += `<h3 class="section-title" style="margin-top:1.5rem">⚽ Hoy</h3>
-               <div class="matches-grid">${pendientes.map(m => renderMatchCard(m, preds)).join('')}</div>`;
+
+    if (terminados.length) {
+      html += `<h3 class="section-title" style="margin-top:1.5rem">✅ Resultados</h3>
+               <div class="matches-grid">${terminados.map(m => renderHoyCard(m, preds, false)).join('')}</div>`;
     }
-    if (matchMan.length) {
-      html += `<h3 class="section-title" style="margin-top:1.5rem">📅 Mañana</h3>
-               <div class="matches-grid">${matchMan.map(m => renderMatchCard(m, preds)).join('')}</div>`;
+
+    if (proximos.length) {
+      html += `<h3 class="section-title" style="margin-top:1.5rem">🕒 Próximos</h3>
+               <div class="matches-grid">${proximos.map(m => renderHoyCard(m, preds, false)).join('')}</div>`;
     }
+
     if (!html) {
-      html = `<div class="error-state"><div class="icon">📅</div><p>No hay partidos para hoy ni mañana.</p></div>`;
+      html = `<div class="error-state"><div class="icon">📅</div><p>No hay partidos registrados para hoy.</p></div>`;
     }
-    document.getElementById('section-hoy').innerHTML = html;
+
+    el.innerHTML = html;
+
+    // Auto-refresh cada 30s si hay partidos en vivo
+    clearInterval(hoyRefreshInterval);
+    if (enVivo.length) {
+      hoyRefreshInterval = setInterval(() => {
+        if (state.section === 'hoy') renderHoy();
+      }, 30000);
+    }
   } catch (e) {
-    document.getElementById('section-hoy').innerHTML = errorHtml('No se pudo cargar: ' + e.message);
+    el.innerHTML = errorHtml('No se pudo cargar: ' + e.message);
   }
+}
+
+function renderHoyCard(m, preds, isLiveSection) {
+  const isLive = isLiveSection || ['1H','2H','HT','ET','BT','P','INT','LIVE'].includes(String(m.status||'').toUpperCase());
+  const isFT   = ['FT','AET','PEN'].includes(String(m.status||'').toUpperCase());
+
+  const gL = m.goles_local     !== null && m.goles_local     !== undefined ? m.goles_local     : null;
+  const gV = m.goles_visitante !== null && m.goles_visitante !== undefined ? m.goles_visitante : null;
+  const hasScore = gL !== null && gV !== null;
+
+  // Status label
+  let statusHtml;
+  if (isLive) {
+    const min = m.minuto ? ` ${m.minuto}` : (m.status ? ` ${m.status}` : '');
+    statusHtml = `<span class="status-live">🔴 EN VIVO${min}</span>`;
+  } else if (isFT) {
+    statusHtml = `<span class="status-ft">FT</span>`;
+  } else {
+    const hora = formatHora(m.hora_chile || m.hora);
+    statusHtml = `<span style="color:var(--text2)">${hora || '–'} hrs</span>`;
+  }
+
+  // Score / vs
+  let scoreHtml;
+  if (hasScore) {
+    const scoreClass = isLive ? 'match-score live-score' : 'match-score';
+    scoreHtml = `<div class="${scoreClass}">${gL} - ${gV}</div>`;
+  } else {
+    scoreHtml = `<div class="match-score pending">vs</div>`;
+  }
+
+  // Predicción Poisson
+  const pred = preds && preds.find(p =>
+    String(p.local||'').toLowerCase() === String(m.local||'').toLowerCase() &&
+    String(p.visitante||'').toLowerCase() === String(m.visitante||'').toLowerCase()
+  );
+  let probHtml = '';
+  if (pred && !isLive) {
+    const ph = Number(pred.prob_home || pred.prob_local || 0) * 100;
+    const pd = Number(pred.prob_draw || 0) * 100;
+    const pa = Number(pred.prob_away || pred.prob_visitante || 0) * 100;
+    if (ph + pd + pa >= 1) {
+      probHtml = `
+        <div class="prob-bar">
+          <div class="ph" style="width:${ph}%"></div>
+          <div class="pd" style="width:${pd}%"></div>
+          <div class="pa" style="width:${pa}%"></div>
+        </div>
+        <div class="prob-labels">
+          <span class="ph-l">${fmt.pct(ph)}</span>
+          <span style="color:var(--text3)">${fmt.pct(pd)}</span>
+          <span class="pa-l">${fmt.pct(pa)}</span>
+        </div>`;
+    }
+  }
+
+  const grupoLabel = (m.grupo && !['NS','TBD',''].includes(m.grupo.toUpperCase()))
+    ? m.grupo : (m.ronda || '');
+
+  const mk = m.match_key || '';
+  const clickAttr = mk ? `onclick="showMatchDetail('${mk}')" style="cursor:pointer"` : '';
+
+  return `
+  <div class="match-card${isLive ? ' live' : ''}" ${clickAttr}>
+    <div class="match-meta">
+      <span class="grupo">${grupoLabel}</span>
+      ${statusHtml}
+    </div>
+    <div class="match-teams">
+      <div class="match-team">
+        <div class="flag">${flag(m.local)}</div>
+        <div class="name">${m.local || ''}</div>
+      </div>
+      ${scoreHtml}
+      <div class="match-team">
+        <div class="flag">${flag(m.visitante)}</div>
+        <div class="name">${m.visitante || ''}</div>
+      </div>
+    </div>
+    ${probHtml}
+  </div>
+  ${mk ? `<div id="detail-${mk}" class="match-detail-inline" style="display:none"></div>` : ''}`;
 }
 
 // ─── Sección: TABLA DE POSICIONES ────────────────────────────────────────────

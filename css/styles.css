@@ -309,7 +309,9 @@ main {
   min-width: 60px;
   text-align: center;
 }
-.match-score.pending { color: var(--text3); font-size: 0.9rem; font-weight: 400; }
+.match-score.pending  { color: var(--text3); font-size: 0.9rem; font-weight: 400; }
+.match-score.live-score { color: var(--live); animation: pulse-score 1.5s ease-in-out infinite; }
+@keyframes pulse-score { 0%,100% { opacity:1 } 50% { opacity:.6 } }
 
 .prob-bar {
   display: flex;
