@@ -643,7 +643,8 @@ function buildLineupField(localTeam, visitanteTeam, titLocal, titVisitante) {
   };
 
   const drawTeam = (players, yStart, yEnd, flip) => {
-    const lines = groupByRow(players);
+    let lines = groupByRow(players);
+    if (flip) lines = [...lines].reverse(); // GK al fondo para visitante
     if (!lines.length) return '';
     let svg = '';
     lines.forEach((row, li) => {
@@ -668,7 +669,7 @@ function buildLineupField(localTeam, visitanteTeam, titLocal, titVisitante) {
     <text x="${W/2}" y="12" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.6)">${localTeam}</text>
     <text x="${W/2}" y="${H-4}" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.6)">${visitanteTeam}</text>
     ${drawTeam(titLocal, 20, H/2 - 10, false)}
-    ${drawTeam([...titVisitante].reverse(), H/2 + 10, H - 20, true)}
+    ${drawTeam(titVisitante, H/2 + 10, H - 20, true)}
   `;
 
   return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:340px;display:block;margin:.5rem auto;border-radius:8px">${svgContent}</svg>`;
@@ -794,7 +795,15 @@ async function renderEV() {
       <h3 class="section-title" style="margin-bottom:.75rem">💡 Oportunidades EV+</h3>
       <div style="overflow-x:auto">
       <table class="ev-table">
-        <thead><tr><th>Partido</th><th>Mercado</th><th>Selección</th><th>Modelo</th><th>Cuota</th><th>EV</th><th>Kelly%</th></tr></thead>
+        <thead><tr>
+          <th>Partido</th>
+          <th>Mercado</th>
+          <th>Selección</th>
+          <th title="Probabilidad calculada por el modelo Poisson/ELO. Si es mayor que la implícita en la cuota, hay value.">Modelo ℹ️</th>
+          <th title="Cuota decimal del bookmaker (Pinnacle vía The Odds API)">Cuota ℹ️</th>
+          <th title="Expected Value = (Prob.modelo × Cuota) − 1. Positivo = apuesta con ventaja estadística. +10% significa que por cada $100 apostados se espera ganar $10 a largo plazo.">EV ℹ️</th>
+          <th title="Fracción Kelly / 4 (conservador). Porcentaje del bankroll sugerido para apostar.">Kelly% ℹ️</th>
+        </tr></thead>
         <tbody>${opps.map(r => `
           <tr>
             <td>${flag(r.local||'')} ${r.local||''} vs ${flag(r.visitante||'')} ${r.visitante||''}<br>
