@@ -164,6 +164,22 @@ function renderMatchCard(m, preds) {
   const mk = m.match_key || '';
   const clickAttr = mk ? `onclick="toggleMatchDetail('${mk}')" style="cursor:pointer"` : '';
 
+  // Estadio + hora local + clima
+  let venueHtml = '';
+  if (m.estadio || m.ciudad) {
+    const horaLocal = m.hora_local ? ` · ${m.hora_local} local` : '';
+    venueHtml += `<div class="match-venue">📍 ${[m.estadio, m.ciudad].filter(Boolean).join(', ')}${horaLocal}</div>`;
+  }
+  if (m.clima) {
+    const c = m.clima;
+    const condIcon = {'DESPEJADO':'☀️','NUBLADO':'☁️','LLUVIA':'🌧️','TORMENTA':'⛈️','NIEBLA':'🌫️','VIENTO':'💨'}[c.condicion] || '🌡️';
+    const parts = [];
+    if (c.temperatura != null) parts.push(`${c.temperatura}°C`);
+    if (c.humedad     != null) parts.push(`💧${c.humedad}%`);
+    if (c.viento      != null) parts.push(`💨${c.viento}km/h`);
+    if (parts.length) venueHtml += `<div class="match-clima">${condIcon} ${parts.join(' · ')}</div>`;
+  }
+
   return `
   <div class="match-card${isLive ? ' live' : ''}" ${clickAttr}>
     <div class="match-meta">
@@ -181,6 +197,7 @@ function renderMatchCard(m, preds) {
         <div class="name">${m.visitante||''}</div>
       </div>
     </div>
+    ${venueHtml}
     ${probHtml}
   </div>
   ${mk ? `<div id="detail-${mk}" class="match-detail-inline" style="display:none"></div>` : ''}`;
