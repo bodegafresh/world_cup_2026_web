@@ -1010,9 +1010,9 @@ async function renderTeams() {
                 ${t.pos ? `<div class="team-pos">#${t.pos} <small>${t.pts}pts</small></div>` : ''}
               </div>
               ${t.elo ? `<div class="team-elo">ELO <strong>${Math.round(t.elo)}</strong></div>` : ''}
-              ${t.forma ? `<div class="team-forma">${t.forma.split('').slice(-5).map(r =>
-                `<span class="forma-dot" style="background:${formaColor(r)}">${r}</span>`
-              ).join('')}</div>` : ''}
+              ${t.forma ? `<div class="team-forma" title="Últimos 5 partidos: W=Victoria · D=Empate · L=Derrota">${t.forma.split('').slice(-5).map(r =>
+                `<span class="forma-dot" title="${{W:'Victoria',D:'Empate',L:'Derrota'}[r]||r}" style="background:${formaColor(r)}">${r}</span>`
+              ).join('')}<span class="forma-legend"> W·D·L</span></div>` : ''}
               <div id="squad-${t.nombre.replace(/\s/g,'_')}" class="squad-inline" style="display:none"></div>
             </div>`).join('')}
         </div>
