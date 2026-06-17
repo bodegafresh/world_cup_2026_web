@@ -568,12 +568,26 @@ function buildLiveCard(m) {
     </div>`;
   }
 
+  // Árbitro
+  let arbHtml = '';
+  if (m.arbitro && m.arbitro.nombre) {
+    const ar = m.arbitro;
+    const tendColor = {'ESTRICTO':'var(--red)','PERMISIVO':'var(--green)','NORMAL':'var(--text2)'}[ar.tendencia]||'var(--text2)';
+    arbHtml = `<div class="live-arbitro">
+      👨‍⚖️ <strong>${ar.nombre}</strong>
+      <span style="color:var(--text3)">${ar.nacionalidad ? `(${ar.nacionalidad})` : ''}</span>
+      ${ar.amarillas_pp != null ? `· 🟨 ${ar.amarillas_pp}/pj` : ''}
+      ${ar.tendencia ? `<span style="color:${tendColor};font-size:.72rem;font-weight:600">${ar.tendencia}</span>` : ''}
+    </div>`;
+  }
+
   return `<div class="match-detail-card live">
     <div class="md-header">
       <span class="live-pill">🔴 EN VIVO ${m.minuto||m.status||''}</span>
       <span style="color:var(--text3);font-size:.8rem">${venueInfo}${horaLocal}</span>
     </div>
     ${climaInfo}
+    ${arbHtml}
     <div class="md-score">
       <div class="md-team">${flag(m.local)} <span>${m.local||''}</span></div>
       <div class="md-scorebox">${m.goles_local !== null ? m.goles_local : '–'} – ${m.goles_visitante !== null ? m.goles_visitante : '–'}</div>
@@ -1141,6 +1155,41 @@ async function renderNoticias() {
   }
 }
 
+// ─── Árbitros ─────────────────────────────────────────────────────────────────
+async function renderArbitros() {
+  const el = document.getElementById('section-arbitros');
+  el.innerHTML = loadingHtml();
+  try {
+    const arbs = await getData('arbitros', 5*60*1000);
+    if (!arbs || !arbs.length) { el.innerHTML = emptyHtml('👨‍⚖️', 'Sin datos de árbitros todavía.'); return; }
+
+    const tendBadge = t => {
+      const map = { ESTRICTO: 'badge-red', NORMAL: 'badge-gray', PERMISIVO: 'badge-green' };
+      return t ? `<span class="arb-tend ${map[t]||'badge-gray'}">${t}</span>` : '';
+    };
+
+    el.innerHTML = `<div class="card" style="padding:0;overflow:hidden">
+      <table class="arb-table">
+        <thead><tr>
+          <th>Árbitro</th><th>País</th><th>Conf.</th><th>PJ</th><th>🟨/pj</th><th>🟥/pj</th><th>Tendencia</th>
+        </tr></thead>
+        <tbody>${arbs.map(a => `<tr>
+          <td><strong>${a.nombre||''}</strong></td>
+          <td style="color:var(--text2)">${a.nacionalidad||''}</td>
+          <td style="color:var(--text3);font-size:.75rem">${a.confederacion||''}</td>
+          <td style="text-align:center">${a.partidos||0}</td>
+          <td style="text-align:center">${a.amarillas_pp != null ? Number(a.amarillas_pp).toFixed(2) : '–'}</td>
+          <td style="text-align:center">${a.rojas_pp != null ? Number(a.rojas_pp).toFixed(2) : '–'}</td>
+          <td>${tendBadge(a.tendencia)}</td>
+        </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+  } catch(e) {
+    el.innerHTML = errorHtml('Error árbitros: ' + e.message);
+  }
+}
+
 // ─── Navegación ───────────────────────────────────────────────────────────────
 let liveRefreshInterval = null;
 
@@ -1155,6 +1204,7 @@ const renderers = {
   ev:          renderEV,
   elo:         renderElo,
   simulacion:  renderSimulation,
+  arbitros:    renderArbitros,
   rendimiento: renderPerformance,
 };
 
