@@ -26,6 +26,17 @@ const fmt = {
   sign: v => { const n = Number(v||0); return (n >= 0 ? '+' : '') + n.toFixed(1) + '%'; }
 };
 
+function formatHora(v) {
+  if (!v) return '';
+  const s = String(v);
+  // ISO timestamp from Google Sheets 1899-12-30 base date
+  const mISO = s.match(/T(\d{2}):(\d{2})/);
+  if (mISO) return `${mISO[1]}:${mISO[2]}`;
+  // Already HH:MM format
+  if (/^\d{1,2}:\d{2}/.test(s)) return s;
+  return '';
+}
+
 function normDate(v) {
   if (!v) return '';
   if (typeof v === 'string') return v.substring(0, 10);
@@ -112,11 +123,11 @@ function renderMatchCard(m, poissonRows) {
   const statusHtml = isLive
     ? `<span class="status-live">🔴 EN VIVO ${m.status||''}</span>`
     : isFT ? `<span class="status-ft">FT</span>`
-    : `<span>${m.hora_chile || m.hora || ''}</span>`;
+    : `<span>${formatHora(m.hora_chile || m.hora) || ''}</span>`;
 
   const scoreHtml = hasScore
     ? `<div class="match-score">${hScore} - ${aScore}</div>`
-    : `<div class="match-score pending">${m.hora_chile || m.hora || 'vs'}</div>`;
+    : `<div class="match-score pending">${formatHora(m.hora_chile || m.hora) || 'vs'}</div>`;
 
   // Buscar predicción Poisson
   const pred = poissonRows && poissonRows.find(p => p.match_key === mk || (
@@ -133,7 +144,8 @@ function renderMatchCard(m, poissonRows) {
     const la = Number(pred.lambda_a || pred.lambda_away || 0).toFixed(2);
     const o25 = Number(pred.over_2_5 || pred['over_2.5'] || 0) * 100;
     const btts = Number(pred.btts_yes || pred.btts || 0) * 100;
-    probHtml = `
+    if (ph + pd + pa < 1) { probHtml = ''; }
+    else probHtml = `
       <div class="prob-bar">
         <div class="ph" style="width:${ph}%"></div>
         <div class="pd" style="width:${pd}%"></div>
@@ -151,10 +163,14 @@ function renderMatchCard(m, poissonRows) {
       </div>`;
   }
 
+  const grupoLabel = (m.grupo && !['NS','TBD'].includes(m.grupo.toUpperCase()))
+    ? m.grupo
+    : (m.ronda || '');
+
   return `
   <div class="match-card${isLive ? ' live' : ''}">
     <div class="match-meta">
-      <span class="grupo">${m.grupo || m.ronda || ''}</span>
+      <span class="grupo">${grupoLabel}</span>
       ${statusHtml}
     </div>
     <div class="match-teams">
