@@ -469,17 +469,31 @@ function buildLineups(local, visitante, alineaciones) {
 let liveInterval = null;
 
 async function renderLive() {
-  document.getElementById('section-live').innerHTML = loadingHtml();
+  const container = document.getElementById('section-live');
+  // Solo mostrar loading si no hay contenido previo (primera carga)
+  if (!container.querySelector('.match-detail-card')) {
+    container.innerHTML = loadingHtml();
+  }
   try {
     const matches = await fetchTab('live');
     if (!matches.length) {
-      document.getElementById('section-live').innerHTML = emptyHtml('📡', 'No hay partidos en vivo ahora mismo.');
+      // Si había contenido y ahora no hay partidos, actualizar silenciosamente
+      container.innerHTML = emptyHtml('📡', 'No hay partidos en vivo ahora mismo.');
+      document.getElementById('live-badge').style.display = 'none';
       return;
     }
     document.getElementById('live-badge').style.display = 'inline-flex';
-    document.getElementById('section-live').innerHTML = matches.map(buildLiveCard).join('');
+    // Actualizar sin flash: fade out → update → fade in
+    container.style.transition = 'opacity 0.25s';
+    container.style.opacity    = '0.4';
+    requestAnimationFrame(() => {
+      container.innerHTML    = matches.map(buildLiveCard).join('');
+      container.style.opacity = '1';
+    });
   } catch(e) {
-    document.getElementById('section-live').innerHTML = errorHtml('Error en vivo: ' + e.message);
+    if (!container.querySelector('.match-detail-card')) {
+      container.innerHTML = errorHtml('Error en vivo: ' + e.message);
+    }
   }
 }
 
