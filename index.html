@@ -30,9 +30,12 @@
 
     <nav>
       <a href="#" data-section="hoy"         class="active">Hoy</a>
+      <a href="#" data-section="live">En Vivo</a>
       <a href="#" data-section="tabla">Posiciones</a>
+      <a href="#" data-section="equipos">Equipos</a>
+      <a href="#" data-section="jugadores">Jugadores</a>
       <a href="#" data-section="ev">EV+</a>
-      <a href="#" data-section="elo">Ranking ELO</a>
+      <a href="#" data-section="elo">ELO</a>
       <a href="#" data-section="simulacion">Clasificación</a>
       <a href="#" data-section="rendimiento">Modelo</a>
     </nav>
@@ -77,6 +80,26 @@
     <!-- HOY -->
     <div id="panel-hoy" class="section-panel">
       <div id="section-hoy"></div>
+    </div>
+
+    <!-- EN VIVO -->
+    <div id="panel-live" class="section-panel" style="display:none">
+      <h2 class="section-title">🔴 En Vivo <span style="font-size:.7rem;color:var(--text3);font-weight:400;text-transform:none">· actualiza cada 30s</span></h2>
+      <div id="section-live"></div>
+    </div>
+
+    <!-- EQUIPOS -->
+    <div id="panel-equipos" class="section-panel" style="display:none">
+      <h2 class="section-title">🏳️ Equipos</h2>
+      <div id="section-teams"></div>
+    </div>
+
+    <!-- JUGADORES -->
+    <div id="panel-jugadores" class="section-panel" style="display:none">
+      <h2 class="section-title">👤 Jugadores — Tabla de goleadores</h2>
+      <div class="card" style="padding:0;overflow:hidden">
+        <div id="section-players" style="padding:1rem"></div>
+      </div>
     </div>
 
     <!-- TABLA DE POSICIONES -->
