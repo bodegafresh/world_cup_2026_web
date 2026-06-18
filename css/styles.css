@@ -456,9 +456,12 @@ main {
   font-weight: 700;
   font-size: .75rem;
 }
-.ev-badge.alta  { background: rgba(0,200,83,.15);  color: var(--green2); }
-.ev-badge.media { background: rgba(255,215,0,.12);  color: var(--gold);   }
-.ev-badge.baja  { background: rgba(144,164,174,.1); color: var(--text2);  }
+.ev-badge.alta        { background: rgba(0,200,83,.15);  color: var(--green2); }
+.ev-badge.media       { background: rgba(255,215,0,.12);  color: var(--gold);   }
+.ev-badge.baja        { background: rgba(144,164,174,.1); color: var(--text2);  }
+.ev-badge.sospechoso  { background: rgba(255,152,0,.15);  color: #ff9800;       }
+.ev-row-sospechoso td { opacity: .75; }
+.ev-row-sospechoso    { border-left: 2px solid #ff9800; }
 
 /* ─── ELO Chart ─────────────────────────────────────────────────────────────── */
 .elo-chart-wrap { position: relative; height: 400px; }
