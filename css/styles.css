@@ -1110,5 +1110,38 @@ footer a:hover { color: var(--gold); }
 .modal-squad-btn { width:100%; margin-top:.5rem; padding:.55rem; background:rgba(255,255,255,.06); border:1px solid var(--border); border-radius:8px; color:var(--text); cursor:pointer; font-size:.85rem; transition:background .15s; }
 .modal-squad-btn:hover { background:rgba(255,255,255,.1); }
 .squad-modal-section { margin-top:1rem; }
+
+/* Squad tab toggle */
+.squad-tab-bar { display:flex; gap:.4rem; margin-bottom:.75rem; }
+.squad-tab { flex:1; padding:.38rem .5rem; border:1px solid var(--border); border-radius:6px; background:transparent; color:var(--text3); font-size:.78rem; cursor:pointer; transition:all .15s; }
+.squad-tab.active { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600; }
+.squad-tab-panel { animation: fadeIn .2s; }
+
+/* Stats WC table */
+.squad-stats-table { font-size:.75rem; }
+.squad-stats-header, .squad-stats-row {
+  display: grid;
+  grid-template-columns: 2rem 1fr 1.5rem 2.5rem 1.5rem 1.5rem 1.5rem 1.5rem 2.5rem;
+  gap: .15rem;
+  align-items: center;
+  padding: .3rem .1rem;
+}
+.squad-stats-header {
+  color: var(--text3); font-weight: 700; font-size: .68rem;
+  border-bottom: 1px solid var(--border); margin-bottom: .1rem; text-align: center;
+}
+.squad-stats-header span:nth-child(2) { text-align: left; }
+.squad-stats-row { border-bottom: 1px solid rgba(255,255,255,.04); }
+.squad-stats-row:last-child { border-bottom: none; }
+.squad-stats-row span { text-align: center; color: var(--text2); }
+.squad-stats-row .spos { font-size:.65rem; font-weight:700; color:var(--text3); background:var(--card2); border-radius:3px; padding:.1rem .2rem; }
+.squad-stats-row .sname { text-align:left; font-weight:600; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+@media (max-width:400px) {
+  .squad-stats-header, .squad-stats-row {
+    grid-template-columns: 2rem 1fr 1.5rem 2.2rem 1.5rem 1.5rem 1.5rem 1.5rem 2.2rem;
+    font-size:.7rem;
+  }
+}
+
 @keyframes fadeIn  { from{opacity:0} to{opacity:1} }
 @keyframes slideUp { from{transform:translateY(16px);opacity:0} to{transform:translateY(0);opacity:1} }

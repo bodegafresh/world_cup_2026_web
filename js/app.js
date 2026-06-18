@@ -1187,8 +1187,13 @@ async function loadModalSquad(nombre, containerId) {
   el.innerHTML = `<div class="loading-center" style="padding:.75rem"><div class="spinner" style="width:20px;height:20px"></div></div>`;
   try {
     const squad = await getData('squad', 15*60*1000, { equipo: nombre });
-    if (!squad.jugadores || !squad.jugadores.length) { el.innerHTML = '<p style="color:var(--text3);font-size:.8rem;padding:.5rem 0">Sin datos de plantel.</p>'; return; }
+    if (!squad.jugadores || !squad.jugadores.length) {
+      el.innerHTML = '<p style="color:var(--text3);font-size:.8rem;padding:.5rem 0">Sin datos de plantel.</p>';
+      return;
+    }
     el.dataset.loaded = '1';
+
+    // ── Plantel view ──
     const byPos = { Goalkeeper:[], Defender:[], Midfielder:[], Forward:[] };
     const posLabel = { Goalkeeper:'Porteros 🧤', Defender:'Defensas 🛡️', Midfielder:'Medios ⚙️', Forward:'Delanteros ⚡' };
     squad.jugadores.forEach(p => {
@@ -1196,24 +1201,90 @@ async function loadModalSquad(nombre, containerId) {
       const k = Object.keys(byPos).find(k => pos.toLowerCase().includes(k.toLowerCase())) || 'Midfielder';
       byPos[k].push(p);
     });
-    el.innerHTML = `<div class="team-modal-section" style="margin-top:.75rem">
-      <div class="team-modal-section-title">Plantel</div>
-      <div class="squad-grid">${Object.entries(byPos).filter(([,v])=>v.length).map(([pos,players]) => `
-        <div class="squad-pos-group">
-          <div class="squad-pos-label">${posLabel[pos]||pos}</div>
-          <div class="squad-players">${players.map(p => `
-            <div class="squad-player">
-              ${p.foto ? `<img src="${p.foto}" class="squad-photo" onerror="this.style.display='none'">` : `<div class="squad-photo-ph">${(p.nombre||'?').charAt(0)}</div>`}
-              <div class="squad-player-info">
-                <span class="squad-player-name">${p.nombre||''}</span>
-                <span class="squad-player-meta">${p.edad ? p.edad+'a' : ''} ${p.goles>0?`· ⚽${p.goles}`:''}</span>
-              </div>
-            </div>`).join('')}
-          </div>
-        </div>`).join('')}</div>
-    </div>`;
+    const plantelHtml = `<div class="squad-grid">${Object.entries(byPos).filter(([,v])=>v.length).map(([pos,players]) => `
+      <div class="squad-pos-group">
+        <div class="squad-pos-label">${posLabel[pos]||pos}</div>
+        <div class="squad-players">${players.map(p => `
+          <div class="squad-player">
+            ${p.foto ? `<img src="${p.foto}" class="squad-photo" onerror="this.style.display='none'">` : `<div class="squad-photo-ph">${(p.nombre||'?').charAt(0)}</div>`}
+            <div class="squad-player-info">
+              <span class="squad-player-name">${p.nombre||''}</span>
+              <span class="squad-player-meta">${p.edad ? p.edad+'a' : ''}${p.goles>0?` · ⚽${p.goles}`:''}${p.asistencias>0?` · 🎯${p.asistencias}`:''}</span>
+            </div>
+          </div>`).join('')}
+        </div>
+      </div>`).join('')}</div>`;
+
+    // ── Stats WC view ──
+    const hasStats = squad.jugadores.some(p => p.partidos > 0);
+    const posOrd = { Goalkeeper:1, Defender:2, Midfielder:3, Forward:4 };
+    const statsPlayers = [...squad.jugadores]
+      .filter(p => p.partidos > 0 || p.minutos > 0)
+      .sort((a,b) => {
+        const pa = posOrd[Object.keys(posOrd).find(k => (a.posicion||'').toLowerCase().includes(k.toLowerCase()))||'Midfielder']||3;
+        const pb = posOrd[Object.keys(posOrd).find(k => (b.posicion||'').toLowerCase().includes(k.toLowerCase()))||'Midfielder']||3;
+        if (pa !== pb) return pa - pb;
+        return (b.minutos||0) - (a.minutos||0);
+      });
+
+    const posShort = p => {
+      const s = (p.posicion||'').toLowerCase();
+      if (s.includes('goal') || s.includes('porter')) return 'PO';
+      if (s.includes('def'))  return 'DF';
+      if (s.includes('mid') || s.includes('medio')) return 'MC';
+      return 'DL';
+    };
+    const ratingColor = r => r >= 7.5 ? 'var(--green)' : r >= 6.5 ? 'var(--gold)' : r > 0 ? 'var(--red)' : 'var(--text3)';
+
+    const statsHtml = hasStats ? `
+      <div class="squad-stats-table">
+        <div class="squad-stats-header">
+          <span>POS</span><span>Jugador</span><span title="Partidos">J</span><span title="Minutos">⏱</span>
+          <span title="Goles">⚽</span><span title="Asistencias">🎯</span>
+          <span title="Amarillas">🟨</span><span title="Rojas">🟥</span><span title="Rating">★</span>
+        </div>
+        ${statsPlayers.map(p => `
+        <div class="squad-stats-row">
+          <span class="spos">${posShort(p)}</span>
+          <span class="sname">${p.nombre||''}</span>
+          <span>${p.partidos||0}</span>
+          <span>${p.minutos||0}</span>
+          <span>${p.goles||0}</span>
+          <span>${p.asistencias||0}</span>
+          <span>${p.amarillas||0}</span>
+          <span>${p.rojas||0}</span>
+          <span style="color:${ratingColor(p.rating)};font-weight:600">${p.rating>0?p.rating.toFixed(1):'–'}</span>
+        </div>`).join('')}
+      </div>` : '<p style="color:var(--text3);font-size:.8rem;padding:.5rem 0">Sin estadísticas de partidos aún.</p>';
+
+    // ── Toggle ──
+    const uid = containerId.replace(/[^a-z0-9]/gi,'');
+    el.innerHTML = `
+      <div class="team-modal-section" style="margin-top:.75rem">
+        <div class="squad-tab-bar">
+          <button class="squad-tab active" onclick="squadToggle('${uid}','plantel')">👕 Plantel</button>
+          <button class="squad-tab" onclick="squadToggle('${uid}','stats')">📊 Stats WC</button>
+        </div>
+        <div id="${uid}-plantel" class="squad-tab-panel">${plantelHtml}</div>
+        <div id="${uid}-stats"   class="squad-tab-panel" style="display:none">${statsHtml}</div>
+      </div>`;
   } catch(e) {
     el.innerHTML = '<p style="color:var(--text3);font-size:.8rem">Error cargando plantel.</p>';
+  }
+}
+
+function squadToggle(uid, tab) {
+  ['plantel','stats'].forEach(t => {
+    const panel = document.getElementById(`${uid}-${t}`);
+    if (panel) panel.style.display = t === tab ? '' : 'none';
+  });
+  // Update active tab button — find bar sibling to one of the panels
+  const panel = document.getElementById(`${uid}-plantel`);
+  if (panel) {
+    const bar = panel.closest('.team-modal-section')?.querySelector('.squad-tab-bar');
+    if (bar) bar.querySelectorAll('.squad-tab').forEach((btn,i) => {
+      btn.classList.toggle('active', (i===0&&tab==='plantel')||(i===1&&tab==='stats'));
+    });
   }
 }
 
