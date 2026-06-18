@@ -1,0 +1,21 @@
+js/app.js
+  s_8d080e6df27905::t_900c014821ccae 891-908,910,917-919,921
+  s_8d080e6df27905::t_1b406af55830c4 880-881
+  s_8d080e6df27905::t_06e624961164a8 928
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.8",
+  "base_commit_sha": "2fb9c8283d105d31445428cc29b7bc5670bb1f47",
+  "prompts": {},
+  "sessions": {
+    "s_8d080e6df27905": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "564b2d3d-c8da-44ef-a747-435eb45baa64",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "Marco Cerda <marco.cerda@mercadolibre.cl>"
+    }
+  }
+}
