@@ -1102,12 +1102,14 @@ function showTeamDetail(nombre) {
   const played   = partidos.filter(p => p.status === 'FT' || p.status === 'AET' || p.status === 'PEN' || (p.goles_l !== null && p.goles_l !== undefined && String(p.goles_l) !== ''));
   const upcoming = partidos.filter(p => !played.includes(p));
 
+  const normStr = s => String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  const isTeamLocal = (m) => normStr(m.local) === normStr(nombre);
+
   const matchResult = (m) => {
     const gl = Number(m.goles_l), gv = Number(m.goles_v);
-    const isLocal = (m.local || '').toLowerCase().includes(nombre.toLowerCase()) || m.local === nombre;
     if (isNaN(gl) || isNaN(gv)) return null;
-    const myGoals = isLocal ? gl : gv;
-    const oppGoals = isLocal ? gv : gl;
+    const myGoals = isTeamLocal(m) ? gl : gv;
+    const oppGoals = isTeamLocal(m) ? gv : gl;
     if (myGoals > oppGoals) return 'w';
     if (myGoals === oppGoals) return 'd';
     return 'l';
@@ -1115,14 +1117,23 @@ function showTeamDetail(nombre) {
 
   const fmtDate = (f) => {
     if (!f) return '';
-    const d = new Date(f + (f.length === 10 ? 'T12:00:00' : ''));
+    let d;
+    const s = String(f).trim();
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+      d = new Date(s.substring(0,10) + 'T12:00:00');
+    } else if (/^\d+$/.test(s)) {
+      d = new Date(Number(s));
+    } else {
+      d = new Date(s);
+    }
+    if (isNaN(d)) return '';
     return d.toLocaleDateString('es-CL', { day:'numeric', month:'short' });
   };
 
   const renderMatch = (m) => {
     const isPlayed = played.includes(m);
-    const opp = (m.local === nombre) ? m.visitante : m.local;
-    const isLocal = m.local === nombre;
+    const isLocal = isTeamLocal(m);
+    const opp = isLocal ? m.visitante : m.local;
     const scoreClass = isPlayed ? (matchResult(m) === 'w' ? 'win' : matchResult(m) === 'd' ? 'draw' : 'loss') : 'upcoming';
     const scoreHtml = isPlayed
       ? `<span class="match-row-score ${scoreClass}">${m.goles_l}–${m.goles_v}</span><span class="match-result-badge ${matchResult(m)}">${{w:'V',d:'E',l:'D'}[matchResult(m)]||''}</span>`
