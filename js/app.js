@@ -18,7 +18,8 @@ const FLAGS = {
   'China':'🇨🇳','Nueva Zelanda':'🇳🇿','Rep. Checa':'🇨🇿','Rumanía':'🇷🇴',
   'Eslovaquia':'🇸🇰','Hungría':'🇭🇺','Albania':'🇦🇱','Eslovenia':'🇸🇮',
   'Congo DR':'🇨🇩','Uzbekistán':'🇺🇿','Uzbekistan':'🇺🇿','Sudáfrica':'🇿🇦',
-  'Bosnia':'🇧🇦','Catar':'🇶🇦','República Checa':'🇨🇿','Rep. Dominicana':'🇩🇴',
+  'Bosnia':'🇧🇦','Bosnia & Herzegovina':'🇧🇦','Bosnia-Herzegovina':'🇧🇦','Bosnia Herzegovina':'🇧🇦',
+  'Catar':'🇶🇦','República Checa':'🇨🇿','Rep. Dominicana':'🇩🇴',
   'El Salvador':'🇸🇻','Guatemala':'🇬🇹','Cuba':'🇨🇺','Trinidad y Tobago':'🇹🇹',
   'Nueva Caledonia':'🇳🇨','Tahití':'🇵🇫','Fiji':'🇫🇯','Vanuatu':'🇻🇺',
   'Israel':'🇮🇱','Siria':'🇸🇾','Jordania':'🇯🇴','Iraq':'🇮🇶',
@@ -1208,7 +1209,7 @@ function showTeamDetail(nombre) {
           <span class="team-modal-flag">${flag(nombre)}</span>
           <div class="team-modal-title">
             <h3>${nombre}</h3>
-            <small>${t.confederacion||''} ${t.grupo ? `· Grupo ${t.grupo}` : ''} ${t.entrenador ? `· ${t.entrenador}` : ''}</small>
+            <small>${t.confederacion||''} ${t.grupo ? `· Grupo ${t.grupo.replace(/^[Gg]rupo\s*/,'')}` : ''} ${t.entrenador ? `· ${t.entrenador}` : ''}</small>
           </div>
           <button class="team-modal-close" onclick="closeTeamModal()">✕</button>
         </div>
