@@ -460,8 +460,11 @@ main {
 .ev-badge.media       { background: rgba(255,215,0,.12);  color: var(--gold);   }
 .ev-badge.baja        { background: rgba(144,164,174,.1); color: var(--text2);  }
 .ev-badge.sospechoso  { background: rgba(255,152,0,.15);  color: #ff9800;       }
+.ev-badge.outlier     { background: rgba(244,67,54,.15);  color: #f44336;       }
 .ev-row-sospechoso td { opacity: .75; }
 .ev-row-sospechoso    { border-left: 2px solid #ff9800; }
+.ev-row-outlier td    { opacity: .65; }
+.ev-row-outlier       { border-left: 3px solid #f44336; background: rgba(244,67,54,.03); }
 
 /* ─── ELO Chart ─────────────────────────────────────────────────────────────── */
 .elo-chart-wrap { position: relative; height: 400px; }

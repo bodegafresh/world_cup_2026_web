@@ -53,7 +53,8 @@ function today() {
   return new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Santiago' });
 }
 
-function evColor(ev, sospechoso) {
+function evColor(ev, sospechoso, outlier) {
+  if (outlier)    return 'outlier';
   if (sospechoso) return 'sospechoso';
   const v = Number(ev) * 100;
   if (v >= 10) return 'alta';
@@ -874,26 +875,37 @@ async function renderEV() {
           <th>Partido</th>
           <th>Mercado</th>
           <th>Selección</th>
-          <th title="Probabilidad calculada por el modelo Poisson/ELO. Si es mayor que la implícita en la cuota, hay value.">Modelo ℹ️</th>
-          <th title="Cuota decimal del bookmaker (Pinnacle vía The Odds API)">Cuota ℹ️</th>
-          <th title="Expected Value = (Prob.modelo × Cuota) − 1. Positivo = apuesta con ventaja estadística. +10% significa que por cada $100 apostados se espera ganar $10 a largo plazo.">EV ℹ️</th>
-          <th title="Fracción Kelly / 4 (conservador). Porcentaje del bankroll sugerido para apostar.">Kelly% ℹ️</th>
+          <th title="Probabilidad calculada por el modelo Poisson/ELO.">Modelo ℹ️</th>
+          <th title="Cuota justa = 1 / Prob.modelo. Cuota mercado = lo que paga la casa. Si mercado > justa, hay value.">Cuota justa → Mercado ℹ️</th>
+          <th title="Edge = Prob.modelo − Prob.implícita. Mide la ventaja real sobre el mercado.">Edge ℹ️</th>
+          <th title="Expected Value = (Prob.modelo × Cuota) − 1. +10% = por cada $100 apostados se espera ganar $10.">EV ℹ️</th>
+          <th title="Fracción Kelly / 4 (conservador). Porcentaje del bankroll sugerido.">Kelly% ℹ️</th>
         </tr></thead>
-        <tbody>${opps.map(r => `
-          <tr${r.sospechoso ? ' class="ev-row-sospechoso"' : ''}>
+        <tbody>${opps.map(r => {
+          const rowClass = r.outlier ? 'ev-row-outlier' : (r.sospechoso ? 'ev-row-sospechoso' : '');
+          const warningIcon = r.outlier
+            ? ' <span title="OUTLIER: EV >30% — mercado ilíquido o mapeo erróneo. No apostar sin confirmar en 2+ casas.">🚨</span>'
+            : (r.sospechoso ? ' <span title="Sospechoso: EV 25-30% — verificar cuota en otra casa.">⚠️</span>' : '');
+          const cuotaJustaStr = r.cuota_justa ? `<small style="color:var(--text3)">${fmt.dec(r.cuota_justa)}</small> → ` : '';
+          const edgeStr = r.edge ? `<span style="color:${Number(r.edge)>0?'var(--green2)':'var(--red)'}">${(Number(r.edge)*100).toFixed(1)}pp</span>` : '—';
+          const confColor = r.confianza === 'PELIGRO' ? 'var(--red)' : r.confianza === 'ALTA' ? 'var(--green2)' : r.confianza === 'MEDIA' ? 'var(--gold)' : 'var(--text3)';
+          return `
+          <tr${rowClass ? ` class="${rowClass}"` : ''}>
             <td>${flag(r.local||'')} ${r.local||''} vs ${flag(r.visitante||'')} ${r.visitante||''}<br>
                 <small style="color:var(--text3)">${r.fecha||''}</small></td>
             <td><small>${r.mercado||''}</small></td>
-            <td><strong>${r.seleccion||''}</strong>${r.sospechoso ? ' <span title="EV sospechoso (25-50%) — verificar cuota">⚠️</span>' : ''}</td>
+            <td><strong>${r.seleccion||''}</strong>${warningIcon}</td>
             <td data-label="Modelo">${fmt.pct(Number(r.prob_modelo||0)*100)}</td>
-            <td data-label="Cuota"><strong style="color:var(--gold)">${fmt.dec(r.cuota)}</strong>${r.cuota_timestamp ? `<br><small style="color:var(--text3)">${r.cuota_timestamp}</small>` : ''}</td>
-            <td data-label="EV"><span class="ev-badge ${evColor(r.ev, r.sospechoso)}">+${(Number(r.ev||0)*100).toFixed(1)}%</span></td>
-            <td data-label="Kelly%"><span style="color:var(--text2)">${(Number(r.kelly||0)*100).toFixed(1)}%</span>${r.confianza ? `<br><small style="color:var(--text3)">${r.confianza}</small>` : ''}</td>
-          </tr>`).join('')}
+            <td data-label="Cuota justa">${cuotaJustaStr}<strong style="color:var(--gold)">${fmt.dec(r.cuota)}</strong></td>
+            <td data-label="Edge">${edgeStr}</td>
+            <td data-label="EV"><span class="ev-badge ${evColor(r.ev, r.sospechoso, r.outlier)}">+${(Number(r.ev||0)*100).toFixed(1)}%</span></td>
+            <td data-label="Kelly%"><span style="color:var(--text2)">${(Number(r.kelly||0)*100).toFixed(1)}%</span>${r.confianza ? `<br><small style="color:${confColor}">${r.confianza}</small>` : ''}</td>
+          </tr>`;
+        }).join('')}
         </tbody>
       </table>
       </div>
-      <p class="table-note">EV = (Prob. modelo × cuota) − 1 · Cuotas: The Odds API</p>`;
+      <p class="table-note">EV = (Prob. modelo × cuota) − 1 · Edge = Prob.modelo − (1/cuota) · Cuotas: The Odds API</p>`;
     } else {
       html += `<div class="ev-no-odds">⚠️ Sin cuotas de mercado cargadas — activa The Odds API o corre <code>cronDailySetup</code> para calcular EV.</div>`;
     }
@@ -1030,12 +1042,60 @@ async function renderPerformance() {
       { label:'Win Rate',    val: wr !== null      ? fmt.pct(wr)                        : '—', type:'gold',  note:`${bets.ganadas||0}/${bets.total||0} apuestas` },
       { label:'ROI',         val: roi !== null     ? fmt.sign(roi)                      : '—', type: roi>=0?'green':'red', note:'Retorno sobre inversión' },
     ];
-    document.getElementById('section-perf').innerHTML = `<div class="perf-grid">${cards.map(c =>
+    const byMarket = perf.byMarket || [];
+    const calBuckets = perf.calibrationBuckets || [];
+
+    let perfHtml = `<div class="perf-grid">${cards.map(c =>
       `<div class="perf-card ${c.type}">
         <div class="val">${c.val}</div>
         <div class="label">${c.label}</div>
         <div class="note">${c.note}</div>
       </div>`).join('')}</div>`;
+
+    // Tabla calibración por bucket
+    if (calBuckets.length) {
+      perfHtml += `
+      <h3 class="section-title" style="margin-top:1.5rem;margin-bottom:.75rem">📐 Calibración por bucket</h3>
+      <p style="color:var(--text3);font-size:.8rem;margin-bottom:.75rem">¿Cuando el modelo dice 30%, ocurre realmente 30%? Ideal: predicha ≈ real.</p>
+      <div style="overflow-x:auto"><table class="ev-table">
+        <thead><tr><th>Rango predicho</th><th>Frec. real</th><th>N muestras</th><th>Bias</th></tr></thead>
+        <tbody>${calBuckets.map(b => {
+          const biasAbs = Math.abs(b.bias);
+          const biasColor = biasAbs < 0.05 ? 'var(--green2)' : biasAbs < 0.10 ? 'var(--gold)' : 'var(--red)';
+          const biasStr = b.bias >= 0 ? `+${(b.bias*100).toFixed(0)}pp` : `${(b.bias*100).toFixed(0)}pp`;
+          const biasIcon = biasAbs < 0.05 ? '✅' : biasAbs < 0.10 ? '⚠️' : '🔴';
+          return `<tr>
+            <td>${b.label}</td>
+            <td>${(b.real*100).toFixed(0)}%</td>
+            <td style="color:var(--text3)">${b.n}</td>
+            <td style="color:${biasColor}">${biasIcon} ${biasStr}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table></div>`;
+    }
+
+    // Tabla por mercado
+    if (byMarket.length) {
+      perfHtml += `
+      <h3 class="section-title" style="margin-top:1.5rem;margin-bottom:.75rem">📊 Rendimiento por mercado</h3>
+      <div style="overflow-x:auto"><table class="ev-table">
+        <thead><tr><th>Mercado</th><th>W/L</th><th>Win Rate</th><th>ROI</th><th>EV prom.</th><th>CLV prom.</th></tr></thead>
+        <tbody>${byMarket.map(m => {
+          const roiColor = Number(m.roi||0) >= 0 ? 'var(--green2)' : 'var(--red)';
+          const clvColor = Number(m.clv_avg||0) >= 0 ? 'var(--green2)' : 'var(--red)';
+          return `<tr>
+            <td><small>${m.mercado||''}</small></td>
+            <td style="color:var(--text3)">${m.ganadas||0}/${m.total||0}</td>
+            <td>${m.win_rate != null ? fmt.pct(Number(m.win_rate)*100) : '—'}</td>
+            <td style="color:${roiColor}">${m.roi != null ? fmt.sign(Number(m.roi)) : '—'}</td>
+            <td style="color:var(--text2)">${m.ev_avg != null ? `+${(Number(m.ev_avg)*100).toFixed(1)}%` : '—'}</td>
+            <td style="color:${clvColor}">${m.clv_avg != null ? fmt.sign(Number(m.clv_avg)) : '—'}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table></div>`;
+    }
+
+    document.getElementById('section-perf').innerHTML = perfHtml;
   } catch(e) {
     document.getElementById('section-perf').innerHTML = errorHtml('Error rendimiento: ' + e.message);
   }
