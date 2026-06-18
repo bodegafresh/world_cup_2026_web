@@ -483,12 +483,20 @@ async function renderLive() {
       return;
     }
     document.getElementById('live-badge').style.display = 'inline-flex';
+    // Guardar qué alineaciones estaban abiertas antes de reemplazar el HTML
+    const openLineups = new Set(
+      [...document.querySelectorAll('[id^="lineup-body-"]')]
+        .filter(el => el.style.display !== 'none')
+        .map(el => el.id.replace('lineup-body-', ''))
+    );
     // Actualizar sin flash: fade out → update → fade in
     container.style.transition = 'opacity 0.25s';
     container.style.opacity    = '0.4';
     requestAnimationFrame(() => {
       container.innerHTML    = matches.map(buildLiveCard).join('');
       container.style.opacity = '1';
+      // Restaurar alineaciones que estaban abiertas
+      openLineups.forEach(mk => { if (mk) toggleLiveLineup(mk); });
     });
   } catch(e) {
     if (!container.querySelector('.match-detail-card')) {
@@ -639,11 +647,16 @@ function buildLineupField(localTeam, visitanteTeam, titLocal, titVisitante) {
       });
       return Object.keys(rows).sort().map(k => rows[k]);
     }
-    // Fallback: group by position
-    const GK = players.filter(p => (p.posicion||'').toLowerCase().includes('goalkeeper') || (p.posicion||'').toLowerCase() === 'gk');
-    const DF = players.filter(p => (p.posicion||'').toLowerCase().includes('defender'));
-    const MF = players.filter(p => (p.posicion||'').toLowerCase().includes('midfielder'));
-    const FW = players.filter(p => (p.posicion||'').toLowerCase().includes('forward') || (p.posicion||'').toLowerCase() === 'attacker');
+    // Fallback: group by position (soporta nombres completos y abreviaturas ESPN)
+    const pos = p => (p.posicion||'').toUpperCase().trim();
+    const GK_ABBRS = new Set(['GK','POR']);
+    const DF_ABBRS = new Set(['CB','LB','RB','LWB','RWB','SW','DC','DL','DR','WB','FB','D']);
+    const MF_ABBRS = new Set(['CM','CDM','CAM','LM','RM','DM','AM','MC','MCD','MCO','MI','MD']);
+    const FW_ABBRS = new Set(['LW','RW','ST','CF','SS','FW','SS','CA','SD','EI','ED']);
+    const GK = players.filter(p => GK_ABBRS.has(pos(p)) || pos(p).includes('GOALKEEPER') || pos(p) === 'G');
+    const DF = players.filter(p => !GK_ABBRS.has(pos(p)) && (DF_ABBRS.has(pos(p)) || pos(p).includes('DEFENDER') || pos(p).includes('BACK')));
+    const MF = players.filter(p => !GK_ABBRS.has(pos(p)) && !DF_ABBRS.has(pos(p)) && (MF_ABBRS.has(pos(p)) || pos(p).includes('MIDFIELDER') || pos(p).includes('MEDIO')));
+    const FW = players.filter(p => FW_ABBRS.has(pos(p)) || pos(p).includes('FORWARD') || pos(p) === 'ATTACKER');
     const lines = [GK, DF, MF, FW].filter(g => g.length);
     if (lines.length === 0) {
       // No position info: distribute evenly
