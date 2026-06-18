@@ -877,7 +877,8 @@ async function renderEV() {
           <th>Mercado</th>
           <th>Selección</th>
           <th title="Probabilidad del modelo. Fuente: IA_AJUSTADA = OpenAI ajustó con contexto, POISSON = modelo estadístico puro, ELO = rating ELO.">Modelo ℹ️</th>
-          <th title="Cuota justa = 1 / Prob.modelo. Cuota mercado = lo que paga la casa. Si mercado > justa, hay value.">Cuota justa → Mercado ℹ️</th>
+          <th title="Prob. implícita del mercado = 1 / cuota. Compara directamente con el modelo para ver si hay valor.">Mercado ℹ️</th>
+          <th title="Cuota justa = 1 / Prob.modelo → cuota del libro. Overlay = cuánto más paga el libro vs lo justo.">Cuota justa → Libro ℹ️</th>
           <th title="Edge = Prob.modelo − Prob.implícita. Mide la ventaja real sobre el mercado.">Edge ℹ️</th>
           <th title="Expected Value = (Prob.modelo × Cuota) − 1. +10% = por cada $100 apostados se espera ganar $10.">EV ℹ️</th>
           <th title="Fracción Kelly / 4 (conservador). Porcentaje del bankroll sugerido.">Kelly% ℹ️</th>
@@ -887,26 +888,44 @@ async function renderEV() {
           const warningIcon = r.outlier
             ? ' <span title="OUTLIER: EV >30% — mercado ilíquido o mapeo erróneo. No apostar sin confirmar en 2+ casas.">🚨</span>'
             : (r.sospechoso ? ' <span title="Sospechoso: EV 25-30% — verificar cuota en otra casa.">⚠️</span>' : '');
-          const cuotaJustaStr = r.cuota_justa ? `<small style="color:var(--text3)">${fmt.dec(r.cuota_justa)}</small> → ` : '';
-          const edgeStr = r.edge ? `<span style="color:${Number(r.edge)>0?'var(--green2)':'var(--red)'}">${(Number(r.edge)*100).toFixed(1)}pp</span>` : '—';
+          const probModelo   = Number(r.prob_modelo || 0);
+          const cuota        = Number(r.cuota || 0);
+          const probImplicit = cuota > 1 ? 1 / cuota : 0;
+          const cuotaJusta   = probModelo > 0 ? 1 / probModelo : 0;
+          const overlay      = cuotaJusta > 0 && cuota > 0 ? ((cuota - cuotaJusta) / cuotaJusta * 100) : 0;
+          const edgeVal      = Number(r.edge || 0);
+          const evVal        = Number(r.ev || 0);
+
+          const cuotaJustaStr = cuotaJusta > 0 ? `<small style="color:var(--text3)">${fmt.dec(cuotaJusta)}</small> → ` : '';
+          const overlayStr   = overlay !== 0
+            ? `<br><small style="color:${overlay>0?'var(--green2)':'var(--red)'};font-size:.65rem">overlay ${overlay>0?'+':''}${overlay.toFixed(1)}%</small>`
+            : '';
+          const edgeStr = edgeVal !== 0
+            ? `<span style="color:${edgeVal>0?'var(--green2)':'var(--red)'}">${(edgeVal*100).toFixed(1)}pp</span>`
+            : '—';
+          const implicitColor = probImplicit > 0
+            ? (probModelo > probImplicit ? 'var(--green2)' : 'var(--red)')
+            : 'var(--text3)';
           const confColor = r.confianza === 'PELIGRO' ? 'var(--red)' : r.confianza === 'ALTA' ? 'var(--green2)' : r.confianza === 'MEDIA' ? 'var(--gold)' : 'var(--text3)';
+          const evSign = evVal >= 0 ? '+' : '';
           return `
           <tr${rowClass ? ` class="${rowClass}"` : ''}>
             <td>${flag(r.local||'')} ${r.local||''} vs ${flag(r.visitante||'')} ${r.visitante||''}<br>
                 <small style="color:var(--text3)">${r.fecha||''}</small></td>
             <td><small>${r.mercado||''}</small></td>
             <td><strong>${r.seleccion||''}</strong>${warningIcon}</td>
-            <td data-label="Modelo">${fmt.pct(Number(r.prob_modelo||0)*100)}${r.fuente ? `<br><small style="color:var(--text3);font-size:.65rem">${r.fuente==='IA_AJUSTADA'?'🧠 IA':'📐 '+r.fuente}</small>` : ''}</td>
-            <td data-label="Cuota justa">${cuotaJustaStr}<strong style="color:var(--gold)">${fmt.dec(r.cuota)}</strong></td>
+            <td data-label="Modelo">${fmt.pct(probModelo*100)}${r.fuente ? `<br><small style="color:var(--text3);font-size:.65rem">${r.fuente==='IA_AJUSTADA'?'🧠 IA':'📐 '+r.fuente}</small>` : ''}</td>
+            <td data-label="Mercado"><span style="color:${implicitColor}">${probImplicit > 0 ? fmt.pct(probImplicit*100) : '—'}</span></td>
+            <td data-label="Cuota justa">${cuotaJustaStr}<strong style="color:var(--gold)">${fmt.dec(cuota)}</strong>${overlayStr}</td>
             <td data-label="Edge">${edgeStr}</td>
-            <td data-label="EV"><span class="ev-badge ${evColor(r.ev, r.sospechoso, r.outlier)}">+${(Number(r.ev||0)*100).toFixed(1)}%</span></td>
+            <td data-label="EV"><span class="ev-badge ${evColor(r.ev, r.sospechoso, r.outlier)}">${evSign}${(evVal*100).toFixed(1)}%</span></td>
             <td data-label="Kelly%"><span style="color:var(--text2)">${(Number(r.kelly||0)*100).toFixed(1)}%</span>${r.confianza ? `<br><small style="color:${confColor}">${r.confianza}</small>` : ''}</td>
           </tr>`;
         }).join('')}
         </tbody>
       </table>
       </div>
-      <p class="table-note">EV = (Prob. modelo × cuota) − 1 · Edge = Prob.modelo − (1/cuota) · Cuotas: The Odds API</p>`;
+      <p class="table-note">EV = (Prob.modelo × cuota) − 1 · Edge = Prob.modelo − Prob.mercado · Overlay = (Libro − Justa) / Justa · Cuotas: The Odds API</p>`;
     } else {
       html += `<div class="ev-no-odds">⚠️ Sin cuotas de mercado cargadas — activa The Odds API o corre <code>cronDailySetup</code> para calcular EV.</div>`;
     }
