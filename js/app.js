@@ -1038,11 +1038,16 @@ async function renderPerformance() {
 }
 
 // ─── Equipos ──────────────────────────────────────────────────────────────────
+const _teamCache = {};
+
 async function renderTeams() {
   document.getElementById('section-teams').innerHTML = loadingHtml();
   try {
     const teams = await getData('teams', 10*60*1000);
     if (!teams.length) { document.getElementById('section-teams').innerHTML = emptyHtml('🏳️', 'No hay datos de equipos.'); return; }
+
+    // Guardar datos para modal
+    teams.forEach(t => { _teamCache[t.nombre] = t; });
 
     // Agrupar
     const grupos = {};
@@ -1056,7 +1061,7 @@ async function renderTeams() {
         <h3 class="section-title">${gLabel}</h3>
         <div class="teams-grid">
           ${grupos[g].map(t => `
-            <div class="team-card" onclick="showTeamSquad('${t.nombre}')" style="cursor:pointer">
+            <div class="team-card" onclick="showTeamDetail('${t.nombre.replace(/'/g,'\\\'')}')" style="cursor:pointer">
               <div class="team-card-top">
                 <span class="team-flag-big">${flag(t.nombre)}</span>
                 <div class="team-card-info">
@@ -1079,7 +1084,6 @@ async function renderTeams() {
                 html += '</div>';
                 return html;
               })()}
-              <div id="squad-${t.nombre.replace(/\s/g,'_')}" class="squad-inline" style="display:none"></div>
             </div>`).join('')}
         </div>
       </div>`;
@@ -1089,14 +1093,97 @@ async function renderTeams() {
   }
 }
 
-async function showTeamSquad(nombre) {
-  const safeId = nombre.replace(/\s/g, '_');
-  const el = document.getElementById(`squad-${safeId}`);
-  if (!el) return;
-  if (el.style.display !== 'none') { el.style.display = 'none'; return; }
-  el.style.display = '';
-  if (el.dataset.loaded) return;
-  el.innerHTML = `<div class="loading-center" style="padding:.5rem"><div class="spinner" style="width:20px;height:20px"></div></div>`;
+function showTeamDetail(nombre) {
+  const t = _teamCache[nombre];
+  if (!t) return;
+
+  const partidos = (t.partidos_wc || []).sort((a,b) => (a.fecha||'') < (b.fecha||'') ? -1 : 1);
+
+  const played   = partidos.filter(p => p.status === 'FT' || p.status === 'AET' || p.status === 'PEN' || (p.goles_l !== null && p.goles_l !== undefined && String(p.goles_l) !== ''));
+  const upcoming = partidos.filter(p => !played.includes(p));
+
+  const matchResult = (m) => {
+    const gl = Number(m.goles_l), gv = Number(m.goles_v);
+    const isLocal = (m.local || '').toLowerCase().includes(nombre.toLowerCase()) || m.local === nombre;
+    if (isNaN(gl) || isNaN(gv)) return null;
+    const myGoals = isLocal ? gl : gv;
+    const oppGoals = isLocal ? gv : gl;
+    if (myGoals > oppGoals) return 'w';
+    if (myGoals === oppGoals) return 'd';
+    return 'l';
+  };
+
+  const fmtDate = (f) => {
+    if (!f) return '';
+    const d = new Date(f + (f.length === 10 ? 'T12:00:00' : ''));
+    return d.toLocaleDateString('es-CL', { day:'numeric', month:'short' });
+  };
+
+  const renderMatch = (m) => {
+    const isPlayed = played.includes(m);
+    const opp = (m.local === nombre) ? m.visitante : m.local;
+    const isLocal = m.local === nombre;
+    const scoreClass = isPlayed ? (matchResult(m) === 'w' ? 'win' : matchResult(m) === 'd' ? 'draw' : 'loss') : 'upcoming';
+    const scoreHtml = isPlayed
+      ? `<span class="match-row-score ${scoreClass}">${m.goles_l}–${m.goles_v}</span><span class="match-result-badge ${matchResult(m)}">${{w:'V',d:'E',l:'D'}[matchResult(m)]||''}</span>`
+      : `<span class="match-row-score upcoming">${m.hora_local ? m.hora_local.substring(0,5) : '–'}</span>`;
+    return `<div class="match-row">
+      <span class="match-row-date">${fmtDate(m.fecha)}</span>
+      <div class="match-row-teams">
+        <span>${flag(nombre)} <strong>${isLocal ? 'vs' : '@'}</strong> ${flag(opp)} ${opp}</span>
+      </div>
+      ${scoreHtml}
+      ${m.ciudad ? `<span class="match-row-venue">${m.ciudad}</span>` : ''}
+    </div>`;
+  };
+
+  const squadId = `modal-squad-${nombre.replace(/\s/g,'_')}`;
+
+  const html = `
+    <div class="team-modal-overlay" id="team-modal-overlay" onclick="if(event.target===this)closeTeamModal()">
+      <div class="team-modal">
+        <div class="team-modal-header">
+          <span class="team-modal-flag">${flag(nombre)}</span>
+          <div class="team-modal-title">
+            <h3>${nombre}</h3>
+            <small>${t.confederacion||''} ${t.grupo ? `· Grupo ${t.grupo}` : ''} ${t.entrenador ? `· ${t.entrenador}` : ''}</small>
+          </div>
+          <button class="team-modal-close" onclick="closeTeamModal()">✕</button>
+        </div>
+        <div class="team-modal-body">
+          ${played.length ? `<div class="team-modal-section">
+            <div class="team-modal-section-title">Resultados ⚽ Mundial 2026</div>
+            ${played.map(renderMatch).join('')}
+          </div>` : ''}
+          ${upcoming.length ? `<div class="team-modal-section">
+            <div class="team-modal-section-title">Próximos partidos</div>
+            ${upcoming.map(renderMatch).join('')}
+          </div>` : ''}
+          ${!partidos.length ? `<p style="color:var(--text3);font-size:.85rem;text-align:center;padding:1rem 0">Sin partidos programados.</p>` : ''}
+          <div class="squad-modal-section">
+            <button class="modal-squad-btn" onclick="loadModalSquad('${nombre.replace(/'/g,"\\'")}','${squadId}')">👕 Ver Plantel</button>
+            <div id="${squadId}"></div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+
+  document.body.insertAdjacentHTML('beforeend', html);
+  document.body.style.overflow = 'hidden';
+}
+
+function closeTeamModal() {
+  const el = document.getElementById('team-modal-overlay');
+  if (el) el.remove();
+  document.body.style.overflow = '';
+}
+
+async function loadModalSquad(nombre, containerId) {
+  const el = document.getElementById(containerId);
+  if (!el || el.dataset.loaded) return;
+  const btn = el.previousElementSibling;
+  if (btn) btn.style.display = 'none';
+  el.innerHTML = `<div class="loading-center" style="padding:.75rem"><div class="spinner" style="width:20px;height:20px"></div></div>`;
   try {
     const squad = await getData('squad', 15*60*1000, { equipo: nombre });
     if (!squad.jugadores || !squad.jugadores.length) { el.innerHTML = '<p style="color:var(--text3);font-size:.8rem;padding:.5rem 0">Sin datos de plantel.</p>'; return; }
@@ -1108,22 +1195,29 @@ async function showTeamSquad(nombre) {
       const k = Object.keys(byPos).find(k => pos.toLowerCase().includes(k.toLowerCase())) || 'Midfielder';
       byPos[k].push(p);
     });
-    el.innerHTML = `<div class="squad-grid">${Object.entries(byPos).filter(([,v])=>v.length).map(([pos,players]) => `
-      <div class="squad-pos-group">
-        <div class="squad-pos-label">${posLabel[pos]||pos}</div>
-        <div class="squad-players">${players.map(p => `
-          <div class="squad-player">
-            ${p.foto ? `<img src="${p.foto}" class="squad-photo" onerror="this.style.display='none'">` : `<div class="squad-photo-ph">${(p.nombre||'?').charAt(0)}</div>`}
-            <div class="squad-player-info">
-              <span class="squad-player-name">${p.nombre||''}</span>
-              <span class="squad-player-meta">${p.edad ? p.edad+'a' : ''} ${p.goles>0?`· ⚽${p.goles}`:''}</span>
-            </div>
-          </div>`).join('')}
-        </div>
-      </div>`).join('')}</div>`;
+    el.innerHTML = `<div class="team-modal-section" style="margin-top:.75rem">
+      <div class="team-modal-section-title">Plantel</div>
+      <div class="squad-grid">${Object.entries(byPos).filter(([,v])=>v.length).map(([pos,players]) => `
+        <div class="squad-pos-group">
+          <div class="squad-pos-label">${posLabel[pos]||pos}</div>
+          <div class="squad-players">${players.map(p => `
+            <div class="squad-player">
+              ${p.foto ? `<img src="${p.foto}" class="squad-photo" onerror="this.style.display='none'">` : `<div class="squad-photo-ph">${(p.nombre||'?').charAt(0)}</div>`}
+              <div class="squad-player-info">
+                <span class="squad-player-name">${p.nombre||''}</span>
+                <span class="squad-player-meta">${p.edad ? p.edad+'a' : ''} ${p.goles>0?`· ⚽${p.goles}`:''}</span>
+              </div>
+            </div>`).join('')}
+          </div>
+        </div>`).join('')}</div>
+    </div>`;
   } catch(e) {
-    el.innerHTML = errorHtml('Error cargando plantel');
+    el.innerHTML = '<p style="color:var(--text3);font-size:.8rem">Error cargando plantel.</p>';
   }
+}
+
+async function showTeamSquad(nombre) {
+  showTeamDetail(nombre);
 }
 
 // ─── Jugadores ────────────────────────────────────────────────────────────────
@@ -1365,6 +1459,8 @@ function initApp() {
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeTeamModal(); });
+
 document.addEventListener('DOMContentLoaded', () => {
   if (!WORKER_URL) {
     document.getElementById('config-banner').style.display = '';
