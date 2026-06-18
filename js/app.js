@@ -1186,6 +1186,7 @@ async function renderStats() {
         <th title="Posesión promedio del torneo">Pos%</th><th title="Tiros totales">Tiros</th>
         <th title="Tiros al arco">Arco</th><th title="Corners">Corn.</th>
         <th title="Tarjetas amarillas">🟨</th>
+        <th title="Tarjetas rojas">🟥</th>
       </tr></thead>
       <tbody>${stats.map(t => `
         <tr onclick="showTeamSquad('${t.equipo}');showSection('equipos')" style="cursor:pointer">
@@ -1201,6 +1202,7 @@ async function renderStats() {
           <td>${t.tiros_arco||0}</td>
           <td>${t.corners||0}</td>
           <td>${t.amarillas||0}</td>
+          <td style="color:var(--red)">${t.rojas||0}</td>
         </tr>`).join('')}
       </tbody>
     </table>
