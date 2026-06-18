@@ -1330,6 +1330,7 @@ async function renderStats() {
           ${t.tiros ? `<span title="Tiros / al arco">🎯 ${t.tiros||0}/${t.tiros_arco||0}</span>` : ''}
           ${t.corners ? `<span title="Corners">⛳ ${t.corners} corn.</span>` : ''}
           ${t.amarillas ? `<span>🟨 ${t.amarillas}</span>` : ''}
+          ${t.rojas ? `<span>🟥 ${t.rojas}</span>` : ''}
         </div>
       </div>`).join('')}
     </div>
