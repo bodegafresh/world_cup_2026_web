@@ -22,7 +22,7 @@ const FLAGS = {
   'El Salvador':'🇸🇻','Guatemala':'🇬🇹','Cuba':'🇨🇺','Trinidad y Tobago':'🇹🇹',
   'Nueva Caledonia':'🇳🇨','Tahití':'🇵🇫','Fiji':'🇫🇯','Vanuatu':'🇻🇺',
   'Israel':'🇮🇱','Siria':'🇸🇾','Jordania':'🇯🇴','Iraq':'🇮🇶',
-  'Mali':'🇲🇱','Angola':'🇦🇴','Tanzania':'🇹🇿','Kenia':'🇰🇪',
+  'Mali':'🇲🇱','Angola':'🇦🇴','Tanzania':'🇹🇿','Kenia':'🇰🇪','Cabo Verde':'🇨🇻','Cape Verde':'🇨🇻',
 };
 const flag = t => FLAGS[t] || '🏳️';
 
@@ -1128,7 +1128,7 @@ function showTeamDetail(nombre) {
     return `<div class="match-row">
       <span class="match-row-date">${fmtMatchDate(m.fecha)}</span>
       <div class="match-row-teams">
-        <span>${flag(nombre)} <strong>${isLocal ? 'vs' : '@'}</strong> ${flag(opp)} ${opp}</span>
+        <span>${isLocal ? `<strong>${flag(nombre)} ${nombre}</strong> vs ${flag(opp)} ${opp}` : `${flag(opp)} ${opp} vs <strong>${flag(nombre)} ${nombre}</strong>`}</span>
       </div>
       ${scoreHtml}
       ${m.ciudad ? `<span class="match-row-venue">${m.ciudad}</span>` : ''}
