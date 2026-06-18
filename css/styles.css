@@ -775,7 +775,8 @@ footer a:hover { color: var(--gold); }
 .team-pos { margin-left: auto; text-align: right; font-weight: 700; color: var(--gold); }
 .team-elo { font-size: .78rem; color: var(--text2); margin-bottom: .4rem; }
 .team-forma { display: flex; gap: .25rem; flex-wrap: wrap; align-items: center; }
-.forma-legend { font-size: .6rem; color: var(--text3); margin-left: .15rem; white-space: nowrap; }
+.forma-label { font-size: .7rem; margin-right: .1rem; }
+.forma-sep   { font-size: .65rem; color: var(--text3); margin: 0 .15rem; }
 .forma-dot {
   width: 22px; height: 22px;
   border-radius: 50%;
@@ -783,7 +784,9 @@ footer a:hover { color: var(--gold); }
   font-size: .65rem;
   font-weight: 700;
   color: #fff;
+  cursor: default;
 }
+.forma-dot:not(.wc) { opacity: .55; }
 
 /* ─── Responsive ────────────────────────────────────────────────────────────── */
 @media (max-width: 768px) {

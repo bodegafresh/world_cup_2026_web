@@ -1066,9 +1066,19 @@ async function renderTeams() {
                 ${t.pos ? `<div class="team-pos">#${t.pos} <small>${t.pts}pts</small></div>` : ''}
               </div>
               ${t.elo ? `<div class="team-elo">ELO <strong>${Math.round(t.elo)}</strong></div>` : ''}
-              ${t.forma ? `<div class="team-forma" title="Últimos 5: W=Victoria · D=Empate · L=Derrota">${t.forma.split(',').filter(r => /^[WDL]$/.test(r)).slice(-5).map(r =>
-                `<span class="forma-dot" title="${{W:'Victoria',D:'Empate',L:'Derrota'}[r]}" style="background:${formaColor(r)}">${r}</span>`
-              ).join('')}</div>` : ''}
+              ${(() => {
+                const detail = (t.forma_detail && t.forma_detail.length) ? t.forma_detail : (t.forma ? t.forma.split(',').filter(r=>/^[WDL]$/.test(r)).map(r=>({r,wc:false,rival:'',score:''})) : []);
+                if (!detail.length) return '';
+                const labels = {W:'Victoria',D:'Empate',L:'Derrota'};
+                const wc  = detail.filter(d => d.wc).slice(-5);
+                const prev= detail.filter(d => !d.wc).slice(-5);
+                const dot = (d, gold) => `<span class="forma-dot${gold?' wc':''}" title="${labels[d.r]||d.r}${d.rival?' vs '+d.rival:''}${d.score?' ('+d.score+')':''}" style="background:${formaColor(d.r)};${gold?'box-shadow:0 0 0 2px var(--gold)':''}">${d.r}</span>`;
+                let html = '<div class="team-forma">';
+                if (wc.length)  html += `<span class="forma-label">⚽</span>${wc.map(d=>dot(d,true)).join('')}`;
+                if (prev.length) html += `${wc.length?'<span class="forma-sep">·</span>':''}${prev.map(d=>dot(d,false)).join('')}`;
+                html += '</div>';
+                return html;
+              })()}
               <div id="squad-${t.nombre.replace(/\s/g,'_')}" class="squad-inline" style="display:none"></div>
             </div>`).join('')}
         </div>
