@@ -919,7 +919,14 @@ async function renderEV() {
             <td data-label="Cuota justa">${cuotaJustaStr}<strong style="color:var(--gold)">${fmt.dec(cuota)}</strong>${overlayStr}</td>
             <td data-label="Edge">${edgeStr}</td>
             <td data-label="EV"><span class="ev-badge ${evColor(r.ev, r.sospechoso, r.outlier)}">${evSign}${(evVal*100).toFixed(1)}%</span></td>
-            <td data-label="Kelly%"><span style="color:var(--text2)">${(Number(r.kelly||0)*100).toFixed(1)}%</span>${r.confianza ? `<br><small style="color:${confColor}">${r.confianza}</small>` : ''}</td>
+            <td data-label="Kelly%">${(() => {
+              const kPct = Number(r.kelly||0)*100;
+              const kColor = kPct >= 2 ? 'var(--text2)' : 'var(--text3)';
+              let kSub = '';
+              if (r.confianza) kSub = `<br><small style="color:${confColor}">${r.confianza}</small>`;
+              if (evVal > 0 && kPct < 1.5) kSub += `<br><small style="color:var(--text3);font-size:.6rem">edge pequeño</small>`;
+              return `<span style="color:${kColor}">${kPct.toFixed(1)}%</span>${kSub}`;
+            })()}</td>
           </tr>`;
         }).join('')}
         </tbody>
@@ -965,6 +972,120 @@ async function renderEV() {
       });
       html += `</div>`;
     }
+
+    // P2 — Calibración del modelo
+    try {
+      const calib = await getData('calibracion', 15*60*1000).catch(() => null);
+      if (calib && calib.buckets && calib.buckets.length) {
+        html += `<h3 class="section-title" style="margin-top:2rem;margin-bottom:.75rem">🎯 Calibración del Modelo</h3>`;
+        if (calib.brierLast) {
+          const brier = Number(calib.brierLast.brier_score||0);
+          const brierColor = brier < 0.15 ? 'var(--green2)' : brier < 0.22 ? 'var(--gold)' : 'var(--red)';
+          html += `<p style="margin:.25rem 0 .75rem;font-size:.85rem;color:var(--text2)">
+            Brier Score: <strong style="color:${brierColor}">${brier.toFixed(4)}</strong>
+            <span style="color:var(--text3)"> — ${calib.brierLast.interpretacion||''} · ${calib.brierLast.partidos_evaluados||0} partidos evaluados</span>
+            <span title="Brier Score < 0.15 = Excelente · < 0.22 = Bueno · ≥ 0.22 = Mejorable. Mide el error cuadrático promedio de las probabilidades predichas." style="cursor:help"> ℹ️</span>
+          </p>`;
+        }
+        html += `<div style="overflow-x:auto"><table class="ev-table" style="font-size:.8rem">
+          <thead><tr>
+            <th>Rango predicho</th><th>Tasa real</th><th>n</th>
+            <th title="Calibración visual: barra verde = bien calibrado, naranja/rojo = sesgado">Calibración</th>
+            <th>Bias</th>
+          </tr></thead><tbody>`;
+        calib.buckets.forEach(b => {
+          const real = Number(b.real||0);
+          const mid  = Number(b.midpoint||0);
+          const bias = Number(b.bias||0);
+          const biasColor = Math.abs(bias) < 0.05 ? 'var(--green2)' : Math.abs(bias) < 0.10 ? 'var(--gold)' : 'var(--red)';
+          const biasStr = (bias >= 0 ? '+' : '') + (bias*100).toFixed(1) + 'pp';
+          // Mini calibration bar: ideal = mid, real = real
+          const barW = Math.round(real*100);
+          const idealW = Math.round(mid*100);
+          html += `<tr>
+            <td>${b.label}</td>
+            <td><strong>${(real*100).toFixed(0)}%</strong></td>
+            <td style="color:var(--text3)">${b.n}</td>
+            <td style="min-width:120px">
+              <div style="position:relative;height:12px;background:var(--bg2);border-radius:4px;overflow:hidden">
+                <div style="position:absolute;left:0;top:0;height:100%;width:${barW}%;background:${biasColor};opacity:.7;border-radius:4px"></div>
+                <div style="position:absolute;left:${idealW}%;top:-1px;height:14px;width:2px;background:var(--text2);opacity:.6"></div>
+              </div>
+            </td>
+            <td style="color:${biasColor};font-size:.75rem">${biasStr}</td>
+          </tr>`;
+        });
+        html += `</tbody></table></div>
+        <p class="table-note">Barra: real · Línea: ideal · Bias = real − predicho · Positivo = modelo subestima · Negativo = sobreestima</p>`;
+      }
+
+      // ROI por rango EV
+      if (calib && calib.evRoiBuckets && calib.evRoiBuckets.some(b => b.n > 0)) {
+        html += `<h4 style="margin:1.25rem 0 .5rem;font-size:.9rem;color:var(--text2)">📊 ROI histórico por rango EV</h4>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.5rem">`;
+        calib.evRoiBuckets.forEach(b => {
+          if (b.n === 0) { html += `<div style="opacity:.3;padding:.4rem .75rem;border-radius:6px;background:var(--bg2);font-size:.8rem;color:var(--text3)">${b.label}<br>—</div>`; return; }
+          const roi = Number(b.roi||0);
+          const roiPct = (roi*100).toFixed(1);
+          const bg = roi > 0.02 ? 'rgba(74,222,128,.12)' : roi < -0.02 ? 'rgba(248,113,113,.12)' : 'var(--bg2)';
+          const col = roi > 0.02 ? 'var(--green2)' : roi < -0.02 ? 'var(--red)' : 'var(--text2)';
+          html += `<div style="padding:.4rem .75rem;border-radius:6px;background:${bg};font-size:.8rem;text-align:center">
+            <div style="color:var(--text3);font-size:.7rem">${b.label}</div>
+            <div style="color:${col};font-weight:700">${roi>=0?'+':''}${roiPct}%</div>
+            <div style="color:var(--text3);font-size:.65rem">n=${b.n}</div>
+          </div>`;
+        });
+        html += `</div><p class="table-note">ROI = P&L / picks en esa franja EV · Solo picks resueltos (WIN/LOSS)</p>`;
+      }
+    } catch(ec_) {}
+
+    // P3 — Simulación de bankroll
+    try {
+      const sim = await getData('bankroll', 15*60*1000).catch(() => null);
+      if (sim && sim.n > 0 && sim.strategies) {
+        html += `<h3 class="section-title" style="margin-top:2rem;margin-bottom:.75rem">💰 Simulación de Bankroll</h3>
+        <p style="font-size:.8rem;color:var(--text3);margin:.25rem 0 .75rem">${sim.n} picks EV+ resueltos · Bankroll inicial: 100u</p>
+        <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1rem">`;
+        sim.strategies.forEach(st => {
+          const final = Number(st.final||100);
+          const pnl   = final - 100;
+          const col   = pnl > 0 ? 'var(--green2)' : pnl < 0 ? 'var(--red)' : 'var(--text2)';
+          html += `<div style="flex:1;min-width:120px;padding:.75rem;border-radius:8px;background:var(--bg2);text-align:center">
+            <div style="font-size:.75rem;color:var(--text3)">${st.label}</div>
+            <div style="font-size:1.3rem;font-weight:700;color:${col};margin:.25rem 0">${final.toFixed(1)}u</div>
+            <div style="font-size:.75rem;color:${col}">${pnl>=0?'+':''}${pnl.toFixed(1)}u (${pnl>=0?'+':''}${(pnl).toFixed(1)}%)</div>
+          </div>`;
+        });
+        html += `</div>`;
+
+        // Mini sparkline SVG para cada estrategia
+        if (sim.strategies[0] && sim.strategies[0].points && sim.strategies[0].points.length > 1) {
+          const pts = sim.strategies[0].points;
+          const allPts = sim.strategies.flatMap(s => s.points);
+          const minV = Math.min(100, ...allPts) * 0.98;
+          const maxV = Math.max(100, ...allPts) * 1.02;
+          const W = 600, H = 120, pad = 8;
+          const toX = i => pad + (i / (pts.length - 1)) * (W - pad*2);
+          const toY = v => H - pad - ((v - minV) / (maxV - minV)) * (H - pad*2);
+          const colors = ['var(--gold)','var(--green2)','#60a5fa'];
+          let svgPaths = '';
+          sim.strategies.forEach((st, si) => {
+            const d = st.points.map((v, i) => `${i===0?'M':'L'}${toX(i).toFixed(1)},${toY(v).toFixed(1)}`).join(' ');
+            svgPaths += `<path d="${d}" fill="none" stroke="${colors[si]}" stroke-width="1.5" opacity=".85"/>`;
+          });
+          // Línea de base 100
+          const y100 = toY(100);
+          svgPaths += `<line x1="${pad}" y1="${y100}" x2="${W-pad}" y2="${y100}" stroke="var(--text3)" stroke-width="1" stroke-dasharray="3,3" opacity=".4"/>`;
+          html += `<div style="overflow-x:auto"><svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:${W}px;height:auto;display:block">
+            ${svgPaths}
+          </svg></div>
+          <div style="display:flex;gap:1rem;flex-wrap:wrap;margin:.5rem 0">
+            ${sim.strategies.map((st,si)=>`<span style="font-size:.72rem;color:${colors[si]}">— ${st.label}</span>`).join('')}
+          </div>`;
+        }
+        html += `<p class="table-note">Flat: 1u por pick · Kelly 25%/50%: fracción Kelly × factor × bankroll actual</p>`;
+      }
+    } catch(es_) {}
 
     if (!html) html = emptyHtml('🔍', 'Sin datos disponibles. Ejecuta cronDailySetup en Apps Script.');
     document.getElementById('section-ev').innerHTML = html;
