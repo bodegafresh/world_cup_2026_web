@@ -876,7 +876,7 @@ async function renderEV() {
           <th>Partido</th>
           <th>Mercado</th>
           <th>Selección</th>
-          <th title="Probabilidad calculada por el modelo Poisson/ELO.">Modelo ℹ️</th>
+          <th title="Probabilidad del modelo. Fuente: IA_AJUSTADA = OpenAI ajustó con contexto, POISSON = modelo estadístico puro, ELO = rating ELO.">Modelo ℹ️</th>
           <th title="Cuota justa = 1 / Prob.modelo. Cuota mercado = lo que paga la casa. Si mercado > justa, hay value.">Cuota justa → Mercado ℹ️</th>
           <th title="Edge = Prob.modelo − Prob.implícita. Mide la ventaja real sobre el mercado.">Edge ℹ️</th>
           <th title="Expected Value = (Prob.modelo × Cuota) − 1. +10% = por cada $100 apostados se espera ganar $10.">EV ℹ️</th>
@@ -896,7 +896,7 @@ async function renderEV() {
                 <small style="color:var(--text3)">${r.fecha||''}</small></td>
             <td><small>${r.mercado||''}</small></td>
             <td><strong>${r.seleccion||''}</strong>${warningIcon}</td>
-            <td data-label="Modelo">${fmt.pct(Number(r.prob_modelo||0)*100)}</td>
+            <td data-label="Modelo">${fmt.pct(Number(r.prob_modelo||0)*100)}${r.fuente ? `<br><small style="color:var(--text3);font-size:.65rem">${r.fuente==='IA_AJUSTADA'?'🧠 IA':'📐 '+r.fuente}</small>` : ''}</td>
             <td data-label="Cuota justa">${cuotaJustaStr}<strong style="color:var(--gold)">${fmt.dec(r.cuota)}</strong></td>
             <td data-label="Edge">${edgeStr}</td>
             <td data-label="EV"><span class="ev-badge ${evColor(r.ev, r.sospechoso, r.outlier)}">+${(Number(r.ev||0)*100).toFixed(1)}%</span></td>
