@@ -507,16 +507,19 @@ async function renderLive() {
 
 function buildLiveCard(m) {
   const eventIcons = { goal:'⚽', subst:'🔄', yellowcard:'🟨', yellowredcard:'🟨🟥', redcard:'🟥', var:'📺' };
-  const evHtml = (m.eventos||[]).map(ev => {
-    const icon = eventIcons[(ev.tipo||'').toLowerCase()] || '•';
-    const min  = ev.extra ? `${ev.minuto}+${ev.extra}'` : `${ev.minuto}'`;
-    return `<div class="live-event">
-      <span class="live-min">${min}</span>
-      <span class="live-icon">${icon}</span>
-      <span class="live-team">${ev.equipo||''}</span>
-      <span class="live-player">${ev.jugador||''}${ev.asistente ? ` <small>(${ev.asistente})</small>` : ''}</span>
+  const eventos = m.eventos || [];
+  const evHtml = eventos.length ? eventos.map(ev => {
+    const icon  = eventIcons[(ev.tipo||'').toLowerCase()] || '•';
+    const min   = ev.extra ? `${ev.minuto}+${ev.extra}'` : `${ev.minuto ? ev.minuto+"'" : ''}`;
+    const isLocal = (ev.equipo||'') === m.local;
+    const jugador = ev.jugador ? `<strong>${ev.jugador}</strong>` : '';
+    const asistencia = ev.asistente ? ` <span style="color:var(--text3);font-size:.78rem">(🎯 ${ev.asistente})</span>` : '';
+    return `<div class="live-event" style="justify-content:${isLocal ? 'flex-start' : 'flex-end'}; text-align:${isLocal ? 'left' : 'right'}">
+      ${isLocal
+        ? `<span class="live-min">${min}</span><span class="live-icon">${icon}</span><span class="live-player">${jugador}${asistencia}</span>`
+        : `<span class="live-player">${jugador}${asistencia}</span><span class="live-icon">${icon}</span><span class="live-min">${min}</span>`}
     </div>`;
-  }).join('') || `<p style="color:var(--text3);font-size:.8rem;padding:.5rem 0">Sin eventos registrados aún</p>`;
+  }).join('') : `<p style="color:var(--text3);font-size:.8rem;padding:.5rem 0;text-align:center">⏳ Sin eventos aún</p>`;
   const statsHtml = m.stats ? buildStatsBars(m.local, m.visitante, m.stats) : '';
 
   // Venue + clima
@@ -1124,7 +1127,7 @@ function showTeamDetail(nombre) {
     const scoreClass = isPlayed ? (matchResult(m) === 'w' ? 'win' : matchResult(m) === 'd' ? 'draw' : 'loss') : 'upcoming';
     const scoreHtml = isPlayed
       ? `<span class="match-row-score ${scoreClass}">${m.goles_l}–${m.goles_v}</span><span class="match-result-badge ${matchResult(m)}">${{w:'V',d:'E',l:'D'}[matchResult(m)]||''}</span>`
-      : `<span class="match-row-score upcoming">${m.hora_local ? m.hora_local.substring(0,5) : '–'}</span>`;
+      : `<span class="match-row-score upcoming">${(m.hora||m.hora_local||'').substring(0,5) || '–'}</span>`;
     return `<div class="match-row">
       <span class="match-row-date">${fmtMatchDate(m.fecha)}</span>
       <div class="match-row-teams">
