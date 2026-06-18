@@ -1115,20 +1115,7 @@ function showTeamDetail(nombre) {
     return 'l';
   };
 
-  const fmtDate = (f) => {
-    if (!f) return '';
-    let d;
-    const s = String(f).trim();
-    if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
-      d = new Date(s.substring(0,10) + 'T12:00:00');
-    } else if (/^\d+$/.test(s)) {
-      d = new Date(Number(s));
-    } else {
-      d = new Date(s);
-    }
-    if (isNaN(d)) return '';
-    return d.toLocaleDateString('es-CL', { day:'numeric', month:'short' });
-  };
+  const fmtMatchDate = (f) => fmtDate(String(f||'').substring(0,10));
 
   const renderMatch = (m) => {
     const isPlayed = played.includes(m);
@@ -1139,7 +1126,7 @@ function showTeamDetail(nombre) {
       ? `<span class="match-row-score ${scoreClass}">${m.goles_l}–${m.goles_v}</span><span class="match-result-badge ${matchResult(m)}">${{w:'V',d:'E',l:'D'}[matchResult(m)]||''}</span>`
       : `<span class="match-row-score upcoming">${m.hora_local ? m.hora_local.substring(0,5) : '–'}</span>`;
     return `<div class="match-row">
-      <span class="match-row-date">${fmtDate(m.fecha)}</span>
+      <span class="match-row-date">${fmtMatchDate(m.fecha)}</span>
       <div class="match-row-teams">
         <span>${flag(nombre)} <strong>${isLocal ? 'vs' : '@'}</strong> ${flag(opp)} ${opp}</span>
       </div>
