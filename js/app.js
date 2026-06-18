@@ -470,6 +470,19 @@ function buildLineups(local, visitante, alineaciones) {
 
 // ─── En Vivo ──────────────────────────────────────────────────────────────────
 let liveInterval = null;
+let liveClockInterval = null;
+
+function tickLiveClocks() {
+  document.querySelectorAll('[data-tz]').forEach(el => {
+    const tz = el.dataset.tz;
+    if (!tz) return;
+    try {
+      el.textContent = new Intl.DateTimeFormat('es-CL', {
+        timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: false
+      }).format(new Date());
+    } catch(e_) {}
+  });
+}
 
 async function renderLive() {
   const container = document.getElementById('section-live');
@@ -497,6 +510,7 @@ async function renderLive() {
     container.style.opacity    = '0.4';
     requestAnimationFrame(() => {
       container.innerHTML    = matches.map(buildLiveCard).join('');
+      tickLiveClocks();
       container.style.opacity = '1';
       // Restaurar alineaciones que estaban abiertas
       openLineups.forEach(mk => { if (mk) toggleLiveLineup(mk); });
@@ -526,7 +540,8 @@ function buildLiveCard(m) {
   const statsHtml = m.stats ? buildStatsBars(m.local, m.visitante, m.stats) : '';
 
   // Venue + clima
-  const horaLocal = m.hora_local ? ` · ⏰ ${m.hora_local} local` : '';
+  const tzId = m.timezone_estadio || '';
+  const clockId = `live-clock-${(m.local||'').replace(/\s/g,'')}-${(m.visitante||'').replace(/\s/g,'')}`;
   const venueInfo = [m.estadio, m.ciudad].filter(Boolean).join(', ');
   let climaInfo = '';
   if (m.clima) {
@@ -613,7 +628,7 @@ function buildLiveCard(m) {
   return `<div class="match-detail-card live">
     <div class="md-header">
       <span class="live-pill">🔴 EN VIVO ${m.minuto||m.status||''}</span>
-      <span style="color:var(--text3);font-size:.8rem">${venueInfo}${horaLocal}</span>
+      <span style="color:var(--text3);font-size:.8rem">${venueInfo}${venueInfo && tzId ? ' · ' : ''}${tzId ? `⏰ <span id="${clockId}" data-tz="${tzId}">--:--</span> local` : ''}</span>
     </div>
     ${climaInfo}
     ${arbHtml}
@@ -1697,8 +1712,12 @@ function showSection(id) {
   document.querySelectorAll('nav a').forEach(a => a.classList.toggle('active', a.dataset.section === id));
 
   if (liveRefreshInterval) { clearInterval(liveRefreshInterval); liveRefreshInterval = null; }
+  if (liveClockInterval)   { clearInterval(liveClockInterval);   liveClockInterval   = null; }
   if (id === 'live') {
     liveRefreshInterval = setInterval(() => { delete cache['live']; renderLive(); }, 30000);
+    // Actualizar relojes de estadio cada minuto (client-side, sin re-fetch)
+    tickLiveClocks();
+    liveClockInterval = setInterval(tickLiveClocks, 60000);
   }
   if (renderers[id]) renderers[id]();
 }
