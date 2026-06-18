@@ -563,7 +563,7 @@ function buildLiveCard(m) {
     const supLocal     = alin.filter(a => a.equipo === m.local     && a.rol !== 'titular');
     const supVisitante = alin.filter(a => a.equipo === m.visitante && a.rol !== 'titular');
 
-    const fieldSvg = buildLineupField(m.local, m.visitante, titularesLocal, titularesVisitante);
+    const fieldSvg = buildLineupField(m.local, m.visitante, titularesLocal, titularesVisitante, m.formacion_local, m.formacion_visitante);
     const subHtml  = (subs, equipo) => subs.length ? `<div class="lineup-subs">
       <span style="color:var(--text3);font-size:.7rem">Suplentes:</span>
       ${subs.slice(0,7).map(p=>`<span class="lineup-sub-name">${p.numero ? `${p.numero}.` : ''}${p.jugador}</span>`).join('')}
@@ -632,12 +632,28 @@ function toggleLiveLineup(mk) {
   if (arrow) arrow.textContent = open ? '▶' : '▼';
 }
 
-function buildLineupField(localTeam, visitanteTeam, titLocal, titVisitante) {
+function buildLineupField(localTeam, visitanteTeam, titLocal, titVisitante, formLocal, formVisitante) {
   if (!titLocal.length && !titVisitante.length) return '';
   const W = 320, H = 420;
 
-  // Group players by grid row or evenly by position
-  const groupByRow = (players) => {
+  // Clasifica un jugador en GK/DF/MF/FW según abreviatura ESPN o nombre de posición
+  const posGroup = (p) => {
+    const pos = (p.posicion || '').toUpperCase().trim();
+    if (!pos || pos === '') return 'UNK';
+    const GK = new Set(['GK','POR','G']);
+    const DF = new Set(['CB','LB','RB','LWB','RWB','SW','DC','DL','DR','WB','FB','D']);
+    const MF = new Set(['CM','CDM','CAM','LM','RM','DM','AM','MC','MCD','MCO','MI','MD','M']);
+    const FW = new Set(['LW','RW','ST','CF','SS','FW','CA','SD','EI','ED','F']);
+    if (GK.has(pos) || pos.includes('GOALKEEPER')) return 'GK';
+    if (DF.has(pos) || pos.includes('DEFENDER') || pos.includes('BACK')) return 'DF';
+    if (FW.has(pos) || pos.includes('FORWARD') || pos === 'ATTACKER') return 'FW';
+    if (MF.has(pos) || pos.includes('MIDFIELDER')) return 'MF';
+    return 'UNK';
+  };
+
+  // Agrupa jugadores según la formación string "4-4-1-1" o por posición si no hay formación
+  const groupByFormation = (players, formation) => {
+    // Si hay grid de API-Football, usarlo
     if (players.some(p => p.grid)) {
       const rows = {};
       players.forEach(p => {
@@ -647,31 +663,55 @@ function buildLineupField(localTeam, visitanteTeam, titLocal, titVisitante) {
       });
       return Object.keys(rows).sort().map(k => rows[k]);
     }
-    // Fallback: group by position (soporta nombres completos y abreviaturas ESPN)
-    const pos = p => (p.posicion||'').toUpperCase().trim();
-    const GK_ABBRS = new Set(['GK','POR']);
-    const DF_ABBRS = new Set(['CB','LB','RB','LWB','RWB','SW','DC','DL','DR','WB','FB','D']);
-    const MF_ABBRS = new Set(['CM','CDM','CAM','LM','RM','DM','AM','MC','MCD','MCO','MI','MD']);
-    const FW_ABBRS = new Set(['LW','RW','ST','CF','SS','FW','SS','CA','SD','EI','ED']);
-    const GK = players.filter(p => GK_ABBRS.has(pos(p)) || pos(p).includes('GOALKEEPER') || pos(p) === 'G');
-    const DF = players.filter(p => !GK_ABBRS.has(pos(p)) && (DF_ABBRS.has(pos(p)) || pos(p).includes('DEFENDER') || pos(p).includes('BACK')));
-    const MF = players.filter(p => !GK_ABBRS.has(pos(p)) && !DF_ABBRS.has(pos(p)) && (MF_ABBRS.has(pos(p)) || pos(p).includes('MIDFIELDER') || pos(p).includes('MEDIO')));
-    const FW = players.filter(p => FW_ABBRS.has(pos(p)) || pos(p).includes('FORWARD') || pos(p) === 'ATTACKER');
-    const lines = [GK, DF, MF, FW].filter(g => g.length);
-    if (lines.length === 0) {
-      // No position info: distribute evenly
+
+    if (formation) {
+      // Parsear "4-4-1-1" → [4,4,1,1]
+      const nums = formation.split('-').map(Number).filter(n => n > 0);
+      if (nums.length >= 2) {
+        // Ordenar: GK primero, luego resto por grupo DF→MF→FW, desconocidos al final
+        const gks  = players.filter(p => posGroup(p) === 'GK');
+        const defs = players.filter(p => posGroup(p) === 'DF');
+        const mids = players.filter(p => posGroup(p) === 'MF');
+        const fwds = players.filter(p => posGroup(p) === 'FW');
+        const unk  = players.filter(p => posGroup(p) === 'UNK');
+        // Si no se puede clasificar suficientes, distribuir por formación directo
+        const ordered = [...gks, ...defs, ...mids, ...fwds, ...unk];
+        const rows = [];
+        // GK siempre primer row (1 jugador)
+        if (ordered.length > 0) rows.push([ordered[0]]);
+        let idx = 1;
+        nums.forEach(n => {
+          const slice = ordered.slice(idx, idx + n);
+          if (slice.length) rows.push(slice);
+          idx += n;
+        });
+        // Sobrantes (si hay más de 11)
+        if (idx < ordered.length) rows.push(ordered.slice(idx));
+        return rows.filter(r => r.length);
+      }
+    }
+
+    // Sin formación: agrupar por posición
+    const gks  = players.filter(p => posGroup(p) === 'GK');
+    const defs = players.filter(p => posGroup(p) === 'DF');
+    const mids = players.filter(p => posGroup(p) === 'MF');
+    const fwds = players.filter(p => posGroup(p) === 'FW');
+    const unk  = players.filter(p => posGroup(p) === 'UNK');
+    const lines = [gks, defs, mids, fwds, unk].filter(g => g.length);
+    if (!lines.length) {
+      // Sin info de posición: 1 + mitad + resto
       const all = [...players];
-      const out = [];
-      if (all.length >= 1) out.push(all.splice(0, 1));
-      if (all.length >= 2) out.push(all.splice(0, Math.floor(all.length / 2)));
+      const out = [[all.shift()]];
+      const half = Math.ceil(all.length / 2);
+      out.push(all.splice(0, half));
       if (all.length) out.push(all);
       return out;
     }
     return lines;
   };
 
-  const drawTeam = (players, yStart, yEnd, flip) => {
-    let lines = groupByRow(players);
+  const drawTeam = (players, yStart, yEnd, flip, formation) => {
+    let lines = groupByFormation(players, formation);
     if (flip) lines = [...lines].reverse(); // GK al fondo para visitante
     if (!lines.length) return '';
     let svg = '';
@@ -688,16 +728,19 @@ function buildLineupField(localTeam, visitanteTeam, titLocal, titVisitante) {
     return svg;
   };
 
+  const fmtLocal = formLocal    ? ` (${formLocal})`    : '';
+  const fmtVisit = formVisitante ? ` (${formVisitante})` : '';
+
   const svgContent = `
     <rect width="${W}" height="${H}" rx="8" fill="#2d5a1b"/>
     <rect x="0" y="${H/2-1}" width="${W}" height="2" fill="rgba(255,255,255,0.3)"/>
     <rect x="${W*0.15}" y="${H*0.04}" width="${W*0.7}" height="${H*0.15}" rx="2" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="1.5"/>
     <rect x="${W*0.15}" y="${H*0.81}" width="${W*0.7}" height="${H*0.15}" rx="2" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="1.5"/>
     <circle cx="${W/2}" cy="${H/2}" r="40" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="1.5"/>
-    <text x="${W/2}" y="12" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.6)">${localTeam}</text>
-    <text x="${W/2}" y="${H-4}" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.6)">${visitanteTeam}</text>
-    ${drawTeam(titLocal, 20, H/2 - 10, false)}
-    ${drawTeam(titVisitante, H/2 + 10, H - 20, true)}
+    <text x="${W/2}" y="12" text-anchor="middle" font-size="8.5" fill="rgba(255,255,255,0.75)">${localTeam}${fmtLocal}</text>
+    <text x="${W/2}" y="${H-4}" text-anchor="middle" font-size="8.5" fill="rgba(255,255,255,0.75)">${visitanteTeam}${fmtVisit}</text>
+    ${drawTeam(titLocal, 20, H/2 - 10, false, formLocal)}
+    ${drawTeam(titVisitante, H/2 + 10, H - 20, true, formVisitante)}
   `;
 
   return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:340px;display:block;margin:.5rem auto;border-radius:8px">${svgContent}</svg>`;
