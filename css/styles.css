@@ -925,6 +925,20 @@ footer a:hover { color: var(--gold); }
   text-transform: uppercase;
   margin-left: 2rem;
 }
+.ko-scoreline {
+  color: var(--gold);
+  font-size: .95rem;
+  font-weight: 900;
+  text-align: center;
+  line-height: 1.1;
+}
+.ko-scoreline small {
+  display: block;
+  margin-top: .18rem;
+  color: var(--text2);
+  font-size: .62rem;
+  font-weight: 800;
+}
 .ko-venue {
   margin-top: .65rem;
   color: var(--text3);
@@ -1057,8 +1071,8 @@ footer a:hover { color: var(--gold); }
   }
   .ko-bracket {
     display: flex;
-    width: 100%;
-    max-width: 100%;
+    width: calc(100vw - 1.5rem);
+    max-width: calc(100vw - 1.5rem);
     min-width: 0;
     gap: 0;
     overflow-x: auto;
@@ -1075,9 +1089,9 @@ footer a:hover { color: var(--gold); }
     display: none;
   }
   .ko-round {
-    flex: 0 0 100%;
-    width: 100%;
-    max-width: 100%;
+    flex: 0 0 calc(100vw - 1.5rem);
+    width: calc(100vw - 1.5rem);
+    max-width: calc(100vw - 1.5rem);
     min-width: 0;
     scroll-snap-align: start;
     scroll-snap-stop: always;
@@ -1099,22 +1113,25 @@ footer a:hover { color: var(--gold); }
     width: 100%;
     max-width: 100%;
     min-width: 0;
-    padding: .62rem .7rem;
+    padding: .58rem .68rem;
     border-radius: var(--radius);
   }
   .ko-card-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: .5rem;
     align-items: center;
-    margin-bottom: .45rem;
-    font-size: .66rem;
+    margin-bottom: .42rem;
+    font-size: .64rem;
   }
   .ko-card-head span {
-    max-width: 42%;
+    max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
   .ko-card-head strong {
-    font-size: .68rem;
+    font-size: .64rem;
     white-space: nowrap;
   }
   .ko-pair {
@@ -1125,11 +1142,11 @@ footer a:hover { color: var(--gold); }
   .ko-slot {
     min-width: 0;
     width: 100%;
-    min-height: 28px;
+    min-height: 26px;
     grid-template-columns: 18px minmax(0, 1fr);
     gap: .3rem;
-    padding: .3rem .42rem;
-    font-size: .72rem;
+    padding: .27rem .42rem;
+    font-size: .7rem;
   }
   .ko-slot span:last-child {
     min-width: 0;
@@ -1142,13 +1159,29 @@ footer a:hover { color: var(--gold); }
   }
   .ko-connector {
     margin-left: 0;
-    font-size: .6rem;
+    font-size: .58rem;
     text-align: center;
     line-height: 1;
   }
+  .ko-scoreline {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: .4rem;
+    color: var(--gold);
+    font-size: .78rem;
+    font-weight: 900;
+    line-height: 1;
+  }
+  .ko-scoreline small {
+    color: var(--text2);
+    font-size: .58rem;
+    font-weight: 800;
+    white-space: nowrap;
+  }
   .ko-venue {
-    margin-top: .45rem;
-    font-size: .64rem;
+    margin-top: .38rem;
+    font-size: .62rem;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

@@ -1340,6 +1340,15 @@ function renderKoSlot(label) {
 function renderKoMatch(m, i) {
   const dateLabel = m.fecha ? `${fmtDate(m.fecha)} · ${formatHora(m.hora_chile)} Chile` : formatHora(m.hora_chile);
   const venue = [m.estadio, m.ciudad].filter(Boolean).join(', ');
+  const hasScore = m.goles_local !== null && m.goles_local !== undefined && m.goles_visitante !== null && m.goles_visitante !== undefined;
+  const hasPens = m.penales_local !== null && m.penales_local !== undefined && m.penales_visitante !== null && m.penales_visitante !== undefined;
+  const status = String(m.status || '').toUpperCase();
+  const scoreHtml = hasScore
+    ? `<div class="ko-scoreline">
+        <span>${m.goles_local} – ${m.goles_visitante}</span>
+        ${hasPens ? `<small>Pen. ${m.penales_local}–${m.penales_visitante}</small>` : status === 'PEN' ? '<small>Penales</small>' : ''}
+      </div>`
+    : '<div class="ko-connector">vs</div>';
   return `
     <article class="ko-card">
       <div class="ko-card-head">
@@ -1348,7 +1357,7 @@ function renderKoMatch(m, i) {
       </div>
       <div class="ko-pair">
         ${renderKoSlot(m.local)}
-        <div class="ko-connector">vs</div>
+        ${scoreHtml}
         ${renderKoSlot(m.visitante)}
       </div>
       ${venue ? `<div class="ko-venue">📍 ${venue}</div>` : ''}
