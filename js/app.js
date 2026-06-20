@@ -885,9 +885,12 @@ async function renderEV() {
 
     let html = '';
 
-    if (opps.length) {
-      html += `
-      <h3 class="section-title" style="margin-bottom:.75rem">💡 Oportunidades EV+</h3>
+    const renderEvTable = (title, rows, emptyText, note) => {
+      if (!rows.length) {
+        return emptyText ? `<div class="ev-no-odds">${emptyText}</div>` : '';
+      }
+      return `
+      <h3 class="section-title" style="margin-bottom:.75rem">${title}</h3>
       <div style="overflow-x:auto">
       <table class="ev-table">
         <thead><tr>
@@ -901,7 +904,7 @@ async function renderEV() {
           <th title="Expected Value = (Prob.modelo × Cuota) − 1. +10% = por cada $100 apostados se espera ganar $10.">EV ℹ️</th>
           <th title="Fracción Kelly / 4 (conservador). Porcentaje del bankroll sugerido.">Kelly% ℹ️</th>
         </tr></thead>
-        <tbody>${opps.map(r => {
+        <tbody>${rows.map(r => {
           const rowClass = r.outlier ? 'ev-row-outlier' : (r.sospechoso ? 'ev-row-sospechoso' : '');
           const warningIcon = r.outlier
             ? ' <span title="OUTLIER: EV >30% — mercado ilíquido o mapeo erróneo. No apostar sin confirmar en 2+ casas.">🚨</span>'
@@ -950,7 +953,24 @@ async function renderEV() {
         </tbody>
       </table>
       </div>
-      <p class="table-note">EV = (Prob.modelo × cuota) − 1 · Edge = Prob.modelo − Prob.mercado · Overlay = (Libro − Justa) / Justa · Cuotas: The Odds API</p>`;
+      <p class="table-note">${note}</p>`;
+    };
+
+    if (opps.length) {
+      const evPlus = opps.filter(r => Number(r.ev || 0) > 0);
+      const overpriced = opps.filter(r => Number(r.ev || 0) <= 0);
+      html += renderEvTable(
+        '💡 Oportunidades EV+',
+        evPlus,
+        '✅ No hay EV+ válido ahora. Eso también es una buena señal: el filtro está evitando picks forzados.',
+        'EV_PLUS = Prob.modelo × cuota − 1 > 0 · Edge = Prob.modelo − Prob.mercado · Cuotas: The Odds API'
+      );
+      html += renderEvTable(
+        '🚫 Mercado sobrepreciado',
+        overpriced,
+        '',
+        'MARKET_OVERPRICED = EV ≤ 0. Sirve para entender qué selecciones paga peor el mercado que la probabilidad del modelo.'
+      );
     } else {
       html += `<div class="ev-no-odds">⚠️ Sin cuotas de mercado cargadas — activa The Odds API o corre <code>cronDailySetup</code> para calcular EV.</div>`;
     }
