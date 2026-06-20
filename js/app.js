@@ -1375,6 +1375,11 @@ async function renderKnockout() {
           <span><i class="legend-team"></i> selección definida</span>
         </div>
       </section>
+      <div class="ko-phase-controls" aria-label="Navegación de fases">
+        <button type="button" class="ko-arrow" onclick="moveKoRound(-1)" aria-label="Fase anterior">‹</button>
+        <strong id="ko-phase-label">${rounds[0].label}</strong>
+        <button type="button" class="ko-arrow" onclick="moveKoRound(1)" aria-label="Fase siguiente">›</button>
+      </div>
       <div class="ko-carousel-nav" aria-label="Fases de eliminatorias">
         ${rounds.map((round, idx) => `
           <button type="button" class="${idx === 0 ? 'active' : ''}" onclick="scrollKoRound(${idx})">${round.label}</button>
@@ -1399,17 +1404,36 @@ async function renderKnockout() {
   }
 }
 
+let _koActiveRoundIndex = 0;
+
 function updateKoNav(activeIndex) {
+  _koActiveRoundIndex = activeIndex;
   document.querySelectorAll('.ko-carousel-nav button').forEach((btn, idx) => {
     btn.classList.toggle('active', idx === activeIndex);
   });
+  const rounds = Array.from(document.querySelectorAll('#ko-bracket .ko-round'));
+  const label = document.getElementById('ko-phase-label');
+  if (label && rounds[activeIndex]) {
+    label.textContent = rounds[activeIndex].querySelector('.ko-round-head span')?.textContent || '';
+  }
+  const arrows = document.querySelectorAll('.ko-phase-controls .ko-arrow');
+  if (arrows[0]) arrows[0].disabled = activeIndex <= 0;
+  if (arrows[1]) arrows[1].disabled = activeIndex >= rounds.length - 1;
 }
 
 function scrollKoRound(index) {
+  const bracket = document.getElementById('ko-bracket');
   const round = document.getElementById(`ko-round-${index}`);
-  if (!round) return;
-  round.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
+  if (!bracket || !round) return;
+  const left = round.offsetLeft - bracket.offsetLeft;
+  bracket.scrollTo({ left, behavior: 'smooth' });
   updateKoNav(index);
+}
+
+function moveKoRound(direction) {
+  const rounds = document.querySelectorAll('#ko-bracket .ko-round');
+  const next = Math.max(0, Math.min(rounds.length - 1, _koActiveRoundIndex + direction));
+  scrollKoRound(next);
 }
 
 function setupKnockoutCarousel() {
@@ -1435,6 +1459,8 @@ function setupKnockoutCarousel() {
     ticking = true;
     requestAnimationFrame(updateFromScroll);
   }, { passive: true });
+
+  updateKoNav(0);
 }
 
 function showTeamDetail(nombre) {

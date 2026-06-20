@@ -839,6 +839,9 @@ footer a:hover { color: var(--gold); }
   background: var(--gold);
   color: #000;
 }
+.ko-phase-controls {
+  display: none;
+}
 .ko-bracket {
   display: grid;
   grid-template-columns: repeat(6, minmax(250px, 1fr));
@@ -977,31 +980,85 @@ footer a:hover { color: var(--gold); }
   .standings-table td:nth-child(n+6) { display: none; }
   .login-hero { height: 160px; }
   .ko-overview { align-items: flex-start; flex-direction: column; }
-  .ko-carousel-nav {
+  .ko-phase-controls {
     position: sticky;
     top: 0;
-    z-index: 2;
-    display: flex;
-    padding: .35rem 0 .6rem;
-    background: linear-gradient(180deg, var(--bg) 78%, rgba(5,10,22,0));
+    z-index: 3;
+    display: grid;
+    grid-template-columns: 38px minmax(0, 1fr) 38px;
+    align-items: center;
+    gap: .5rem;
+    margin: 0 0 .75rem;
+    padding: .5rem 0 .65rem;
+    background: linear-gradient(180deg, var(--bg) 82%, rgba(5,10,22,0));
+  }
+  .ko-phase-controls strong {
+    min-width: 0;
+    color: var(--gold);
+    font-size: .85rem;
+    font-weight: 900;
+    text-align: center;
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .ko-arrow {
+    width: 38px;
+    height: 38px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--text);
+    font: inherit;
+    font-size: 1.35rem;
+    font-weight: 900;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .ko-arrow:disabled {
+    opacity: .35;
+    cursor: default;
+  }
+  .ko-carousel-nav {
+    display: none;
   }
   .ko-bracket {
     display: flex;
-    gap: .75rem;
+    width: 100%;
+    max-width: 100%;
+    gap: 0;
     overflow-x: auto;
+    overflow-y: visible;
     scroll-snap-type: x mandatory;
+    scroll-behavior: smooth;
     padding-bottom: 1rem;
-    margin-right: -.75rem;
+    margin-right: 0;
     -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    overscroll-behavior-x: contain;
+  }
+  .ko-bracket::-webkit-scrollbar {
+    display: none;
   }
   .ko-round {
-    flex: 0 0 min(88vw, 360px);
+    flex: 0 0 100%;
+    width: 100%;
     min-width: 0;
     scroll-snap-align: start;
+    scroll-snap-stop: always;
+    padding-right: 0;
   }
   .ko-round-head {
     position: static;
     background: transparent;
+    padding-top: .15rem;
+  }
+  .ko-round-head span {
+    display: none;
+  }
+  .ko-round-matches {
+    gap: .85rem;
   }
   .ko-card::after { display: none; }
 }
