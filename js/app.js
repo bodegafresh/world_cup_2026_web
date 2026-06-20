@@ -1375,9 +1375,14 @@ async function renderKnockout() {
           <span><i class="legend-team"></i> selección definida</span>
         </div>
       </section>
-      <div class="ko-bracket">
-        ${rounds.map(round => `
-          <section class="ko-round ${koRoundClass(round.key)}">
+      <div class="ko-carousel-nav" aria-label="Fases de eliminatorias">
+        ${rounds.map((round, idx) => `
+          <button type="button" class="${idx === 0 ? 'active' : ''}" onclick="scrollKoRound(${idx})">${round.label}</button>
+        `).join('')}
+      </div>
+      <div class="ko-bracket" id="ko-bracket">
+        ${rounds.map((round, roundIdx) => `
+          <section class="ko-round ${koRoundClass(round.key)}" id="ko-round-${roundIdx}" data-round-index="${roundIdx}">
             <div class="ko-round-head">
               <span>${round.label}</span>
               <small>${(round.partidos || []).length} partidos</small>
@@ -1388,9 +1393,48 @@ async function renderKnockout() {
           </section>
         `).join('')}
       </div>`;
+    setupKnockoutCarousel();
   } catch(e) {
     el.innerHTML = errorHtml('Error eliminatorias: ' + e.message);
   }
+}
+
+function updateKoNav(activeIndex) {
+  document.querySelectorAll('.ko-carousel-nav button').forEach((btn, idx) => {
+    btn.classList.toggle('active', idx === activeIndex);
+  });
+}
+
+function scrollKoRound(index) {
+  const round = document.getElementById(`ko-round-${index}`);
+  if (!round) return;
+  round.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
+  updateKoNav(index);
+}
+
+function setupKnockoutCarousel() {
+  const bracket = document.getElementById('ko-bracket');
+  if (!bracket) return;
+
+  const rounds = Array.from(bracket.querySelectorAll('.ko-round'));
+  if (!rounds.length) return;
+
+  let ticking = false;
+  const updateFromScroll = () => {
+    ticking = false;
+    const bracketLeft = bracket.getBoundingClientRect().left;
+    const nearest = rounds.reduce((best, round, idx) => {
+      const distance = Math.abs(round.getBoundingClientRect().left - bracketLeft);
+      return distance < best.distance ? { idx, distance } : best;
+    }, { idx: 0, distance: Number.POSITIVE_INFINITY });
+    updateKoNav(nearest.idx);
+  };
+
+  bracket.addEventListener('scroll', () => {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(updateFromScroll);
+  }, { passive: true });
 }
 
 function showTeamDetail(nombre) {
