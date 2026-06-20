@@ -970,10 +970,11 @@ async function renderEV() {
         const lA = Number(px.lambda_a || 0);
         const o25 = Number(px.over25 || 0);
         const btts = Number(px.btts || 0);
+        const sourceLabel = px.source ? ` · ${px.source}${px.confidence ? ` (${px.confidence})` : ''}` : '';
         html += `<div class="poisson-card">
           <div class="pc-header">
             <span class="pc-teams">${flag(p.local)} ${p.local} vs ${flag(p.visitante)} ${p.visitante}</span>
-            <span class="pc-meta">${p.hora||''} ${p.grupo ? `· ${p.grupo}` : ''}</span>
+            <span class="pc-meta">${p.hora||''} ${p.grupo ? `· ${p.grupo}` : ''}${sourceLabel}</span>
           </div>
           <div class="pc-probs">
             <div class="pc-prob win"><div class="pc-pct">${ph.toFixed(1)}%</div><div class="pc-lbl">${p.local}</div></div>
