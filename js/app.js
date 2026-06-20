@@ -132,7 +132,10 @@ function renderMatchCard(m, preds) {
     statusHtml = `<span class="status-ft">FT</span>`;
   } else {
     const hora = formatHora(m.hora_chile || m.hora);
-    statusHtml = `<span class="match-time">${hora || '–'}</span>`;
+    const nextDayLabel = m.operational_next_day && m.fecha
+      ? ` <small>(${fmtDate(m.fecha)}, ${hora} Chile)</small>`
+      : '';
+    statusHtml = `<span class="match-time">${hora || '–'}${nextDayLabel}</span>`;
   }
 
   const scoreHtml = (gL !== null && gV !== null)
