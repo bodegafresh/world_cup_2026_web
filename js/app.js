@@ -1316,6 +1316,83 @@ async function renderTeams() {
   }
 }
 
+// ─── Eliminatorias ────────────────────────────────────────────────────────────
+function koRoundClass(key) {
+  return {
+    r32: 'ko-r32',
+    r16: 'ko-r16',
+    quarterfinal: 'ko-qf',
+    semifinal: 'ko-sf',
+    final: 'ko-final',
+    third: 'ko-third'
+  }[key] || '';
+}
+
+function renderKoSlot(label) {
+  const isPlaceholder = /Grupo|Ganador|Perdedor|Mejor 3/.test(label || '');
+  return `
+    <div class="ko-slot${isPlaceholder ? ' placeholder' : ''}">
+      <span class="ko-slot-flag">${isPlaceholder ? '🏳️' : flag(label)}</span>
+      <span>${label || 'Por definir'}</span>
+    </div>`;
+}
+
+function renderKoMatch(m, i) {
+  const dateLabel = m.fecha ? `${fmtDate(m.fecha)} · ${formatHora(m.hora_chile)} Chile` : formatHora(m.hora_chile);
+  const venue = [m.estadio, m.ciudad].filter(Boolean).join(', ');
+  return `
+    <article class="ko-card">
+      <div class="ko-card-head">
+        <span>Partido ${i + 1}</span>
+        <strong>${dateLabel || 'Fecha por definir'}</strong>
+      </div>
+      <div class="ko-pair">
+        ${renderKoSlot(m.local)}
+        <div class="ko-connector">vs</div>
+        ${renderKoSlot(m.visitante)}
+      </div>
+      ${venue ? `<div class="ko-venue">📍 ${venue}</div>` : ''}
+    </article>`;
+}
+
+async function renderKnockout() {
+  const el = document.getElementById('section-knockout');
+  el.innerHTML = loadingHtml();
+  try {
+    const data = await getData('knockout', 10*60*1000);
+    const rounds = data.rounds || [];
+    if (!rounds.length) { el.innerHTML = emptyHtml('🏆', 'Aún no hay calendario de eliminatorias.'); return; }
+
+    const total = rounds.reduce((acc, r) => acc + (r.partidos || []).length, 0);
+    el.innerHTML = `
+      <section class="ko-overview">
+        <div>
+          <h3>Camino al campeón</h3>
+          <p>${total} partidos programados · horarios en Chile · sedes incluidas cuando están disponibles.</p>
+        </div>
+        <div class="ko-legend">
+          <span><i class="legend-slot"></i> cupo pendiente</span>
+          <span><i class="legend-team"></i> selección definida</span>
+        </div>
+      </section>
+      <div class="ko-bracket">
+        ${rounds.map(round => `
+          <section class="ko-round ${koRoundClass(round.key)}">
+            <div class="ko-round-head">
+              <span>${round.label}</span>
+              <small>${(round.partidos || []).length} partidos</small>
+            </div>
+            <div class="ko-round-matches">
+              ${(round.partidos || []).map((m, i) => renderKoMatch(m, i)).join('')}
+            </div>
+          </section>
+        `).join('')}
+      </div>`;
+  } catch(e) {
+    el.innerHTML = errorHtml('Error eliminatorias: ' + e.message);
+  }
+}
+
 function showTeamDetail(nombre) {
   const t = _teamCache[nombre];
   if (!t) return;
@@ -1699,6 +1776,7 @@ const renderers = {
   live:        renderLive,
   tabla:       renderStandings,
   equipos:     renderTeams,
+  eliminatorias: renderKnockout,
   jugadores:   renderPlayers,
   stats:       renderStats,
   noticias:    renderNoticias,
