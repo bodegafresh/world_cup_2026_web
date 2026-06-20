@@ -963,6 +963,7 @@ async function renderEV() {
       upcoming.forEach(p => {
         const px = p.poisson || {};
         const el = p.elo || {};
+        const invalidModel = px && px.is_valid_model === false;
         const ph = Number(px.prob_home || el.prob_home || 0);
         const pd = Number(px.prob_draw || el.prob_draw || 0);
         const pa = Number(px.prob_away || el.prob_away || 0);
@@ -970,12 +971,19 @@ async function renderEV() {
         const lA = Number(px.lambda_a || 0);
         const o25 = Number(px.over25 || 0);
         const btts = Number(px.btts || 0);
-        const sourceLabel = px.source ? ` · ${px.source}${px.confidence ? ` (${px.confidence})` : ''}` : '';
+        const sourceLabel = invalidModel
+          ? ` · INVALID_MODEL`
+          : (px.source ? ` · ${px.source}${px.confidence ? ` (${px.confidence})` : ''}` : '');
+        const invalidReason = String(px.invalid_reasons || '').replace(/\|/g, ' · ');
         html += `<div class="poisson-card">
           <div class="pc-header">
             <span class="pc-teams">${flag(p.local)} ${p.local} vs ${flag(p.visitante)} ${p.visitante}</span>
             <span class="pc-meta">${p.hora||''} ${p.grupo ? `· ${p.grupo}` : ''}${sourceLabel}</span>
           </div>
+          ${invalidModel ? `
+          <div class="ev-no-odds" style="margin:.5rem 0 0">
+            Modelo bloqueado para EV+${invalidReason ? ` · ${invalidReason}` : ''}.
+          </div>` : `
           <div class="pc-probs">
             <div class="pc-prob win"><div class="pc-pct">${ph.toFixed(1)}%</div><div class="pc-lbl">${p.local}</div></div>
             <div class="pc-prob draw"><div class="pc-pct">${pd.toFixed(1)}%</div><div class="pc-lbl">Empate</div></div>
@@ -987,6 +995,7 @@ async function renderEV() {
             <div class="pa" style="width:${pa}%"></div>
           </div>
           ${lH || lA ? `<div class="pc-lambda">λ: ${lH} – ${lA} goles esperados${o25 ? ` · Over 2.5: ${o25}%` : ''}${btts ? ` · BTTS: ${btts}%` : ''}</div>` : ''}
+          `}
         </div>`;
       });
       html += `</div>`;
