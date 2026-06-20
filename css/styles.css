@@ -970,6 +970,11 @@ footer a:hover { color: var(--gold); }
 
 /* ─── Responsive ────────────────────────────────────────────────────────────── */
 @media (max-width: 768px) {
+  html,
+  body {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
   .header-inner { height: auto; padding: .6rem 0; flex-wrap: wrap; gap: .5rem; }
   nav { display: flex; overflow-x: auto; -webkit-overflow-scrolling: touch; flex-wrap: nowrap; padding-bottom: 4px; }
   nav a { white-space: nowrap; flex-shrink: 0; }
@@ -983,6 +988,7 @@ footer a:hover { color: var(--gold); }
   #section-knockout {
     max-width: 100%;
     overflow-x: hidden;
+    min-width: 0;
   }
   .ko-overview {
     align-items: flex-start;
@@ -1053,6 +1059,7 @@ footer a:hover { color: var(--gold); }
     display: flex;
     width: 100%;
     max-width: 100%;
+    min-width: 0;
     gap: 0;
     overflow-x: auto;
     overflow-y: visible;
@@ -1086,48 +1093,61 @@ footer a:hover { color: var(--gold); }
     display: none;
   }
   .ko-round-matches {
-    gap: .7rem;
+    gap: .55rem;
   }
   .ko-card {
     width: 100%;
-    padding: .78rem .85rem;
+    max-width: 100%;
+    min-width: 0;
+    padding: .62rem .7rem;
     border-radius: var(--radius);
   }
   .ko-card-head {
     align-items: center;
-    margin-bottom: .55rem;
+    margin-bottom: .45rem;
     font-size: .66rem;
+  }
+  .ko-card-head span {
+    max-width: 42%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .ko-card-head strong {
     font-size: .68rem;
     white-space: nowrap;
   }
   .ko-pair {
-    gap: .28rem;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: center;
+    gap: .38rem;
   }
   .ko-slot {
     min-width: 0;
-    min-height: 32px;
-    grid-template-columns: 22px minmax(0, 1fr);
-    gap: .38rem;
-    padding: .38rem .48rem;
-    font-size: .78rem;
+    min-height: 30px;
+    grid-template-columns: 18px minmax(0, 1fr);
+    gap: .3rem;
+    padding: .34rem .42rem;
+    font-size: .72rem;
   }
   .ko-slot span:last-child {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .ko-slot-flag {
-    font-size: 1rem;
+    font-size: .92rem;
   }
   .ko-connector {
-    margin-left: 1.8rem;
-    font-size: .64rem;
+    margin-left: 0;
+    font-size: .6rem;
+    text-align: center;
   }
   .ko-venue {
-    margin-top: .55rem;
-    font-size: .68rem;
+    margin-top: .45rem;
+    font-size: .64rem;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
